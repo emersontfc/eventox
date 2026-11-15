@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1794092582128,
+      "tag": "0000_mysterious_mister_sinister",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794169352566,
+      "tag": "0001_damp_wild_child",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794170656304,
+      "tag": "0002_stiff_domino",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794172359026,
+      "tag": "0003_shallow_deathbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794173825327,
+      "tag": "0004_tan_proudstar",
+      "breakpoints": true
+    }
+  ]
+}
