@@ -43,7 +43,7 @@ function applyMigrations(sqlite: InstanceType<typeof Database>) {
         if (!stmt) continue;
         try {
           sqlite.exec(stmt);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
           // If table or column already exists, proceed safely
           if (!err.message?.includes("already exists")) {

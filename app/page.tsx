@@ -4,10 +4,10 @@ import {
   Sparkles, CalendarDays, MapPin, Users, UtensilsCrossed, GlassWater,
   Music2, ArrowRight, Shield, Check, Plus, Search, ChevronRight, X, Heart,
   Copy, CheckCheck, QrCode, ExternalLink, Link2, Share2, Layers, CheckCircle2,
-  Camera
+  Camera, Lock
 } from 'lucide-react';
 import Countdown from '../components/Countdown';
-import QRCode from 'qrcode';
+import AuthModal from '../components/AuthModal';
 
 interface EventItem {
   id: number;
@@ -24,29 +24,11 @@ interface EventItem {
 export default function HomePage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createModal, setCreateModal] = useState(false);
   const [searchCode, setSearchCode] = useState('');
 
-  // New event form state
-  const [title, setTitle] = useState('');
-  const [hostName, setHostName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const [venue, setVenue] = useState('');
-  const [passcode, setPasscode] = useState('');
-  const [description, setDescription] = useState('');
-  const [photoAlbumUrl, setPhotoAlbumUrl] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
-
-  // Post-creation success state
-  const [createdEvent, setCreatedEvent] = useState<{
-    slug: string;
-    title: string;
-    url: string;
-    qrCode: string;
-  } | null>(null);
-  const [copiedLink, setCopiedLink] = useState(false);
+  // Auth Modal state
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('register');
 
   const loadEvents = async () => {
     try {
@@ -64,13 +46,6 @@ export default function HomePage() {
     loadEvents();
   }, []);
 
-  const handleTitleChange = (val: string) => {
-    setTitle(val);
-    if (!slug || slug === generateSlug(title)) {
-      setSlug(generateSlug(val));
-    }
-  };
-
   const generateSlug = (text: string) => {
     return text
       .toLowerCase()
@@ -82,59 +57,6 @@ export default function HomePage() {
       .replace(/^-|-$/g, '');
   };
 
-  const handleCreateEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-    setSubmitting(true);
-    try {
-      const res = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          hostName,
-          slug,
-          eventDate,
-          venue,
-          description,
-          photoAlbumUrl: photoAlbumUrl || undefined,
-          passcode: passcode || '1234',
-        }),
-      });
-      const data = await res.json() as { ok?: boolean; slug?: string; error?: string };
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Erro ao criar evento');
-      }
-
-      const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/${data.slug}`;
-      const qrDataUrl = await QRCode.toDataURL(publicUrl, {
-        width: 220,
-        margin: 2,
-        color: { dark: '#502232', light: '#ffffff' }
-      }).catch(() => '');
-
-      setCreatedEvent({
-        slug: data.slug || slug,
-        title,
-        url: publicUrl,
-        qrCode: qrDataUrl,
-      });
-      loadEvents();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Erro ao criar evento');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCopyCreated = () => {
-    if (createdEvent?.url && typeof navigator !== 'undefined') {
-      navigator.clipboard.writeText(createdEvent.url);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2500);
-    }
-  };
-
   const handleSearchNavigate = (e: React.FormEvent) => {
     e.preventDefault();
     const clean = generateSlug(searchCode);
@@ -143,19 +65,9 @@ export default function HomePage() {
     }
   };
 
-  const resetCreateForm = () => {
-    setTitle('');
-    setHostName('');
-    setSlug('');
-    setEventDate('');
-    setVenue('');
-    setPasscode('');
-    setDescription('');
-    setPhotoAlbumUrl('');
-    setFormError('');
-    setCreatedEvent(null);
-    setCopiedLink(false);
-    setCreateModal(false);
+  const openAuth = (mode: 'login' | 'register') => {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
   };
 
   const emersonEvent = events.find(e => e.slug === 'emerson') || {
@@ -164,8 +76,8 @@ export default function HomePage() {
     title: 'Gala de Graduação',
     hostName: 'Emerson Charles',
     eventDate: '2026-12-11T14:00',
-    venue: 'Salão de Eventos Cajada II',
-    description: 'A celebração de uma grande jornada académica e o início de um novo capítulo.',
+    venue: 'Salão de Eventos Cajada II, Maputo',
+    description: 'A celebração de uma grande jornada académica e o início de um novo capítulo extraordinário.',
     coverTheme: 'gold',
   };
 
@@ -173,7 +85,7 @@ export default function HomePage() {
     <div className="home-portal-wrapper">
       {/* Top Navbar */}
       <header className="home-navbar">
-        <div className="home-brand">
+        <div className="home-brand" onClick={() => (window.location.href = '/')}>
           <div className="home-brand-icon">
             <Sparkles size={22} />
           </div>
@@ -183,8 +95,11 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="home-nav-links">
-          <button className="primary-pill" onClick={() => { resetCreateForm(); setCreateModal(true); }}>
+        <div className="home-nav-links" style={{ display: 'flex', gap: '10px' }}>
+          <button className="outline-pill" onClick={() => openAuth('login')}>
+            <Lock size={15} /> Acesso Organização
+          </button>
+          <button className="primary-pill" onClick={() => openAuth('register')}>
             <Plus size={16} /> Criar Evento
           </button>
         </div>
@@ -204,7 +119,7 @@ export default function HomePage() {
           </p>
 
           <div className="home-hero-actions">
-            <button className="hero-cta-button" onClick={() => { resetCreateForm(); setCreateModal(true); }}>
+            <button className="hero-cta-button" onClick={() => openAuth('register')}>
               <Plus size={18} /> Criar Novo Evento Agora
             </button>
             <a href="/emerson" className="hero-secondary-button">
@@ -219,7 +134,7 @@ export default function HomePage() {
               type="text"
               value={searchCode}
               onChange={(e) => setSearchCode(e.target.value)}
-              placeholder="Tens o link ou código de um evento? Digita aqui..."
+              placeholder="Tens o link ou código de um evento? Digita aqui (ex: emerson)..."
             />
             <button type="submit">Entrar →</button>
           </form>
@@ -256,7 +171,7 @@ export default function HomePage() {
               <span className="step-num">03</span>
               <h3>Partilha com os Convidados</h3>
               <p>
-                Envia o link de visualização por WhatsApp ou no convite. Os convidados acedem à contagem regressiva, confirmam presença (RSVP) e descobrem em que mesa vão sentar.
+                Envia o link de visualização por WhatsApp ou no convite. Os convidados acedem à contagem regressiva, confirmam presença (RSVP) e recebem o seu Bilhete VIP.
               </p>
             </div>
 
@@ -264,7 +179,7 @@ export default function HomePage() {
               <span className="step-num">04</span>
               <h3>Opera no Dia da Celebração</h3>
               <p>
-                Acompanha presenças em direto no check-in, regista pedidos de bar e mesa com desconto automático de stock e controla a playlist da festa.
+                Acompanha presenças em direto no check-in, regista pedidos de bar e mesa com desconto automático de stock e controla a playlist e galeria da festa.
               </p>
             </div>
           </div>
@@ -369,7 +284,7 @@ export default function HomePage() {
               <span className="overline">CELEBRAÇÕES NA PLATAFORMA</span>
               <h2>Explorar eventos ativos</h2>
             </div>
-            <button className="outline-pill" onClick={() => { resetCreateForm(); setCreateModal(true); }}>
+            <button className="outline-pill" onClick={() => openAuth('register')}>
               + Novo Evento
             </button>
           </div>
@@ -381,7 +296,11 @@ export default function HomePage() {
                   <span className="event-slug-pill">/{ev.slug}</span>
                   <span className="event-date-chip">
                     <CalendarDays size={14} />
-                    {new Date(ev.eventDate + ':00+02:00').toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {new Date((ev.eventDate || '2026-12-11T14:00') + ':00+02:00').toLocaleDateString('pt-PT', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
                   </span>
                 </div>
                 <h3>{ev.title}</h3>
@@ -403,181 +322,36 @@ export default function HomePage() {
             <strong>EVENTOX</strong>
             <p>A plataforma completa para celebrações memoráveis.</p>
           </div>
+          <div className="footer-links" style={{ display: 'flex', gap: '15px' }}>
+            <button
+              onClick={() => openAuth('register')}
+              style={{ background: 'none', border: 'none', color: '#917983', cursor: 'pointer', fontSize: '12px' }}
+            >
+              Criar Novo Evento
+            </button>
+            <span style={{ color: '#baa6af' }}>·</span>
+            <button
+              onClick={() => openAuth('login')}
+              style={{ background: 'none', border: 'none', color: '#917983', cursor: 'pointer', fontSize: '12px' }}
+            >
+              Acesso da Organização
+            </button>
+          </div>
           <div className="footer-copy">
             © 2026 Eventox · Gestão de Eventos Inteligente.
           </div>
         </div>
       </footer>
 
-      {/* Create Event Modal */}
-      {createModal && (
-        <div className="modal-cover" onMouseDown={(e) => { if (e.target === e.currentTarget && !createdEvent) setCreateModal(false); }}>
-          <div className="modal">
-            {createdEvent ? (
-              /* Success & Link Presentation Screen */
-              <div className="event-created-success-panel">
-                <div className="success-icon-badge">
-                  <CheckCircle2 size={38} />
-                </div>
-                <span className="overline">CELEBRAÇÃO CRIADA COM SUCESSO</span>
-                <h2>{createdEvent.title}</h2>
-                <p className="success-subtitle">
-                  O teu evento está pronto e o <strong>link de visualização oficial</strong> foi gerado:
-                </p>
-
-                <div className="created-link-box">
-                  <span className="link-label"><Link2 size={15} /> LINK DE VISUALIZAÇÃO DO EVENTO</span>
-                  <div className="link-pill-row">
-                    <code>{createdEvent.url}</code>
-                    <button type="button" className={`copy-btn ${copiedLink ? 'copied' : ''}`} onClick={handleCopyCreated}>
-                      {copiedLink ? <><CheckCheck size={16} /> Copiado!</> : <><Copy size={16} /> Copiar Link</>}
-                    </button>
-                  </div>
-                  <small className="created-link-tip">
-                    ✦ Envia este link aos teus convidados por WhatsApp para eles verem a contagem regressiva e confirmarem presença.
-                  </small>
-                </div>
-
-                {createdEvent.qrCode && (
-                  <div className="created-qr-section">
-                    <img src={createdEvent.qrCode} alt="QR Code do Evento" />
-                    <span>QR Code de Acesso Rápido</span>
-                    <a href={createdEvent.qrCode} download={`qrcode-${createdEvent.slug}.png`} className="download-qr-link">
-                      Descarregar Imagem QR ⬇
-                    </a>
-                  </div>
-                )}
-
-                <div className="created-actions-row">
-                  <a href={`/${createdEvent.slug}`} className="primary-action-btn">
-                    Aceder ao Painel de Gestão (Admin) →
-                  </a>
-                  <a href={`/${createdEvent.slug}`} target="_blank" rel="noopener noreferrer" className="secondary-action-btn">
-                    Ver como Convidado (Página Pública) ↗
-                  </a>
-                </div>
-              </div>
-            ) : (
-              /* Creation Form */
-              <>
-                <div className="modal-title">
-                  <div>
-                    <span className="overline">NOVA CELEBRAÇÃO</span>
-                    <h2>Criar um Evento</h2>
-                  </div>
-                  <button onClick={() => setCreateModal(false)}><X size={20} /></button>
-                </div>
-
-                <form onSubmit={handleCreateEvent} className="form-grid">
-                  {formError && <div className="error full">{formError}</div>}
-
-                  <label className="field full">
-                    Nome do Evento
-                    <input
-                      type="text"
-                      required
-                      autoFocus
-                      value={title}
-                      onChange={(e) => handleTitleChange(e.target.value)}
-                      placeholder="Ex.: Gala de Graduação, Casamento de Ana & Rui..."
-                    />
-                  </label>
-
-                  <label className="field">
-                    Nome do Anfitrião
-                    <input
-                      type="text"
-                      required
-                      value={hostName}
-                      onChange={(e) => setHostName(e.target.value)}
-                      placeholder="Ex.: Emerson Charles"
-                    />
-                  </label>
-
-                  <label className="field">
-                    Link do Evento (Slug)
-                    <div className="slug-input-prefix">
-                      <span>/</span>
-                      <input
-                        type="text"
-                        required
-                        value={slug}
-                        onChange={(e) => setSlug(generateSlug(e.target.value))}
-                        placeholder="meu-evento"
-                      />
-                    </div>
-                  </label>
-
-                  <label className="field">
-                    Data e Hora
-                    <input
-                      type="datetime-local"
-                      required
-                      value={eventDate}
-                      onChange={(e) => setEventDate(e.target.value)}
-                    />
-                  </label>
-
-                  <label className="field">
-                    Local da Celebração
-                    <input
-                      type="text"
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      placeholder="Ex.: Salão Nobre Cajada II"
-                    />
-                  </label>
-
-                  <label className="field full">
-                    Mensagem ou Descrição para os Convidados (Opcional)
-                    <textarea
-                      rows={2}
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Ex.: Uma noite inesquecível para celebrar esta grande conquista com todos os que fizeram parte dela..."
-                    />
-                  </label>
-
-                  <label className="field full">
-                    Álbum de Fotos Coletivo (Google Fotos / Drive - Opcional)
-                    <input
-                      type="url"
-                      value={photoAlbumUrl}
-                      onChange={(e) => setPhotoAlbumUrl(e.target.value)}
-                      placeholder="Ex.: https://photos.app.goo.gl/..."
-                    />
-                    <small style={{ color: '#888', marginTop: '4px', display: 'block' }}>
-                      Os convidados verão o botão para carregar fotos do telemóvel diretamente para o teu álbum.
-                    </small>
-                  </label>
-
-                  <label className="field full">
-                    Código PIN de Acesso de Administração
-                    <input
-                      type="text"
-                      value={passcode}
-                      onChange={(e) => setPasscode(e.target.value)}
-                      placeholder="Código para gerir o painel (ex.: 2026)"
-                    />
-                    <small style={{ color: '#888', marginTop: '4px', display: 'block' }}>
-                      Guarda este código para acederes e gerires convidados e mesas mais tarde.
-                    </small>
-                  </label>
-
-                  <div className="modal-actions full">
-                    <button type="button" className="outline" onClick={() => setCreateModal(false)}>
-                      Cancelar
-                    </button>
-                    <button type="submit" className="primary" disabled={submitting}>
-                      {submitting ? 'A criar celebração…' : 'Criar Evento & Obter Link →'}
-                    </button>
-                  </div>
-                </form>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Unified Auth Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultMode={authModalMode}
+        onLoginSuccess={(slug) => {
+          window.location.href = `/${slug}`;
+        }}
+      />
     </div>
   );
 }

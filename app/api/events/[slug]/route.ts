@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../../db';
-import { events, guestTables, guests } from '../../../../db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { events, guestTables, guests, menuItems, playlist, galleryMedia } from '../../../../db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import { isEventAdmin } from '../../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 
     const admin = await isEventAdmin(slug);
 
-    // Get event stats
+    // Get event tables & guests stats
     const tables = await db.select().from(guestTables).where(eq(guestTables.eventId, event.id));
     const allGuests = await db.select({
       id: guests.id,
@@ -31,6 +31,19 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     const totalSeats = tables.reduce((acc, t) => acc + t.capacity, 0);
     const confirmedCount = allGuests.filter(g => ['confirmado', 'presente'].includes(g.status)).length;
     const pendingCount = allGuests.filter(g => g.status === 'pendente').length;
+
+    // Get menu highlights for guests showcase
+    const menu = await db.select().from(menuItems).where(
+      and(eq(menuItems.eventId, event.id), eq(menuItems.available, true))
+    ).limit(8);
+
+    // Get songs for playlist showcase
+    const songs = await db.select().from(playlist).where(eq(playlist.eventId, event.id)).limit(10);
+
+    // Get approved media highlights
+    const media = await db.select().from(galleryMedia).where(
+      and(eq(galleryMedia.eventId, event.id), eq(galleryMedia.status, 'aprovado'))
+    ).orderBy(desc(galleryMedia.id)).limit(9);
 
     return NextResponse.json({
       event: {
@@ -53,6 +66,9 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
         pendingGuests: pendingCount,
       },
       tables: tables.map(t => ({ id: t.id, name: t.name, capacity: t.capacity })),
+      menu: menu.map(m => ({ id: m.id, name: m.name, category: m.category, description: m.description })),
+      playlist: songs.map(s => ({ id: s.id, title: s.title, artist: s.artist, url: s.url })),
+      gallery: media.map(m => ({ id: m.id, key: m.key, mime: m.mime, uploader: m.uploader, createdAt: m.createdAt })),
       admin,
     });
   } catch (e) {
@@ -60,7 +76,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
   }
 }
 
-// RSVP / Check-in endpoint for guests
+// RSVP, Guest search & Self-registration endpoint
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await context.params;
@@ -82,6 +98,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
     const action = body.action || 'rsvp-confirm';
 
+    // 1. Search for guest
     if (action === 'guest-search') {
       const q = String(body.name || '').trim().toLowerCase();
       if (!q || q.length < 2) {
@@ -109,6 +126,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       });
     }
 
+    // 2. RSVP status update (confirmado / recusado)
     if (action === 'rsvp-confirm') {
       const id = Number(body.guestId);
       if (!id) throw new Error('Identificador de convidado inválido.');
@@ -119,6 +137,105 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
         .where(and(eq(guests.id, id), eq(guests.eventId, event.id)));
 
       return NextResponse.json({ ok: true, status: newStatus });
+    }
+
+    // 3. Guest self-registration (Cadastro direto do convidado)
+    if (action === 'guest-self-register') {
+      const rawName = String(body.name || '').trim();
+      const rawPhone = String(body.phone || '').trim();
+      const rawNotes = String(body.notes || '').trim().slice(0, 500);
+
+      if (!rawName || rawName.length < 3) {
+        throw new Error('Por favor insere o teu nome completo (mínimo 3 caracteres).');
+      }
+
+      // Check if already registered
+      const existing = await db.select().from(guests).where(
+        and(eq(guests.eventId, event.id), eq(guests.name, rawName))
+      ).limit(1);
+
+      if (existing.length > 0) {
+        const tables = await db.select().from(guestTables).where(eq(guestTables.eventId, event.id));
+        const tableMap = Object.fromEntries(tables.map(t => [t.id, t.name]));
+        const g = existing[0];
+        return NextResponse.json({
+          ok: true,
+          alreadyExists: true,
+          guest: {
+            id: g.id,
+            name: g.name,
+            tableId: g.tableId,
+            tableName: tableMap[g.tableId] || `Mesa ${g.tableId}`,
+            seat: g.seat,
+            status: g.status,
+            notes: g.notes,
+          },
+        });
+      }
+
+      // Find an available seat across tables
+      const tables = await db.select().from(guestTables).where(eq(guestTables.eventId, event.id));
+      if (tables.length === 0) {
+        throw new Error('As mesas deste evento ainda não foram configuradas.');
+      }
+
+      const allEventGuests = await db.select({
+        tableId: guests.tableId,
+        seat: guests.seat,
+      }).from(guests).where(eq(guests.eventId, event.id));
+
+      let assignedTableId = tables[0].id;
+      let assignedSeat = 1;
+      let foundSlot = false;
+
+      for (const table of tables) {
+        const takenSeats = new Set(
+          allEventGuests.filter(g => g.tableId === table.id).map(g => g.seat)
+        );
+        for (let s = 1; s <= table.capacity; s++) {
+          if (!takenSeats.has(s)) {
+            assignedTableId = table.id;
+            assignedSeat = s;
+            foundSlot = true;
+            break;
+          }
+        }
+        if (foundSlot) break;
+      }
+
+      if (!foundSlot) {
+        // Fallback to table 1 next sequential seat
+        assignedTableId = tables[0].id;
+        const highestSeat = Math.max(0, ...allEventGuests.filter(g => g.tableId === assignedTableId).map(g => g.seat));
+        assignedSeat = highestSeat + 1;
+      }
+
+      const tableMap = Object.fromEntries(tables.map(t => [t.id, t.name]));
+      const timestamp = new Date().toISOString();
+
+      const [newGuest] = await db.insert(guests).values({
+        eventId: event.id,
+        name: rawName,
+        phone: rawPhone,
+        tableId: assignedTableId,
+        seat: assignedSeat,
+        status: 'confirmado',
+        notes: rawNotes,
+        createdAt: timestamp,
+      }).returning();
+
+      return NextResponse.json({
+        ok: true,
+        guest: {
+          id: newGuest.id,
+          name: newGuest.name,
+          tableId: newGuest.tableId,
+          tableName: tableMap[newGuest.tableId] || `Mesa ${newGuest.tableId}`,
+          seat: newGuest.seat,
+          status: newGuest.status,
+          notes: newGuest.notes,
+        },
+      });
     }
 
     return NextResponse.json({ error: 'Ação não suportada.' }, { status: 400 });
