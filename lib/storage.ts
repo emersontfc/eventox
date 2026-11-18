@@ -1,12 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
-import {
-  S3Client,
-  GetObjectCommand,
-  PutObjectCommand,
-  DeleteObjectCommand,
-} from "@aws-sdk/client-s3";
 
 interface StorageGetResult {
   body: BodyInit;
@@ -14,7 +8,10 @@ interface StorageGetResult {
   size?: number;
 }
 
-let _s3Client: S3Client | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _s3Client: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _s3Module: any = null;
 
 function isS3Configured(): boolean {
   return Boolean(
@@ -25,19 +22,31 @@ function isS3Configured(): boolean {
   );
 }
 
-function getS3Client(): { client: S3Client; bucket: string } {
-  if (!_s3Client) {
-    const accountId = process.env.R2_ACCOUNT_ID!;
-    _s3Client = new S3Client({
-      region: "auto",
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-      },
-    });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getS3(): Promise<{ client: any; bucket: string; s3: any } | null> {
+  if (!isS3Configured()) return null;
+  try {
+    if (!_s3Module) {
+      // Dynamic import to avoid build errors if @aws-sdk/client-s3 is not in client bundle
+      // @ts-expect-error dynamic import
+      _s3Module = await import("@aws-sdk/client-s3");
+    }
+    if (!_s3Client) {
+      const accountId = process.env.R2_ACCOUNT_ID!;
+      _s3Client = new _s3Module.S3Client({
+        region: "auto",
+        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+          secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+        },
+      });
+    }
+    return { client: _s3Client, bucket: process.env.R2_BUCKET_NAME!, s3: _s3Module };
+  } catch (err) {
+    console.warn("[storage S3 init warning, using local disk fallback]:", err);
+    return null;
   }
-  return { client: _s3Client, bucket: process.env.R2_BUCKET_NAME! };
 }
 
 function getUploadsDir(): string {
@@ -54,25 +63,26 @@ export const storage = {
   async get(key: string): Promise<StorageGetResult | null> {
     // 1. S3 / R2 Mode
     if (isS3Configured()) {
-      try {
-        const { client, bucket } = getS3Client();
-        const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-        if (!res.Body) return null;
+      const s3Context = await getS3();
+      if (s3Context) {
+        try {
+          const { client, bucket, s3 } = s3Context;
+          const res = await client.send(new s3.GetObjectCommand({ Bucket: bucket, Key: key }));
+          if (!res.Body) return null;
 
-        // Convert Node stream to web stream or Uint8Array
-        const stream = res.Body as Readable;
-        const webStream = Readable.toWeb(stream);
+          const stream = res.Body as Readable;
+          const webStream = Readable.toWeb(stream);
 
-        return {
-          body: webStream as unknown as BodyInit,
-          contentType: res.ContentType,
-          size: res.ContentLength,
-        };
-      } catch (err: unknown) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((err as any)?.$metadata?.httpStatusCode === 404) return null;
-        console.error("[storage S3 get error]:", err);
-        return null;
+          return {
+            body: webStream as unknown as BodyInit,
+            contentType: res.ContentType,
+            size: res.ContentLength,
+          };
+        } catch (err: unknown) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((err as any)?.$metadata?.httpStatusCode === 404) return null;
+          console.error("[storage S3 get error]:", err);
+        }
       }
     }
 
@@ -103,16 +113,19 @@ export const storage = {
 
     // 1. S3 / R2 Mode
     if (isS3Configured()) {
-      const { client, bucket } = getS3Client();
-      await client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          Body: buffer,
-          ContentType: contentType,
-        })
-      );
-      return;
+      const s3Context = await getS3();
+      if (s3Context) {
+        const { client, bucket, s3 } = s3Context;
+        await client.send(
+          new s3.PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+          })
+        );
+        return;
+      }
     }
 
     // 2. Local VPS Disk Storage Mode
@@ -124,13 +137,16 @@ export const storage = {
   async delete(key: string): Promise<void> {
     // 1. S3 / R2 Mode
     if (isS3Configured()) {
-      try {
-        const { client, bucket } = getS3Client();
-        await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-      } catch (err) {
-        console.warn("[storage S3 delete error]:", err);
+      const s3Context = await getS3();
+      if (s3Context) {
+        try {
+          const { client, bucket, s3 } = s3Context;
+          await client.send(new s3.DeleteObjectCommand({ Bucket: bucket, Key: key }));
+        } catch (err) {
+          console.warn("[storage S3 delete error]:", err);
+        }
+        return;
       }
-      return;
     }
 
     // 2. Local VPS Disk Storage Mode

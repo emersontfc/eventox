@@ -57,6 +57,14 @@ export default defineConfig(async ({ command }) => {
           "cloudflare:workers": path.resolve(process.cwd(), "lib/cloudflare-shim.ts"),
         },
       },
+      ssr: {
+        external: ["@aws-sdk/client-s3", "better-sqlite3"],
+      },
+      build: {
+        rolldownOptions: {
+          external: ["@aws-sdk/client-s3", "better-sqlite3"],
+        },
+      },
       server: {
         ...(managedLinux
           ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }
