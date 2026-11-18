@@ -9,11 +9,11 @@ const blankTask:Task={id:0,title:'',memberId:null,dueDate:'',status:'pendente',n
 const areas=['Coordenação geral','Receção e protocolo','Logística e decoração','Catering e bebidas','Música e animação','Finanças','Comunicação e convites','Segurança e primeiros socorros','Fotografia e vídeo','Outras funções'];
 const taskStatuses:Record<string,string>={pendente:'Pendente',em_curso:'Em curso',concluida:'Concluída'};
 
-export default function Committee(){
+export default function Committee({slug='emerson'}:{slug?:string}){
 const [data,setData]=useState<Data>({members:[],tasks:[]}),[error,setError]=useState(''),[success,setSuccess]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[query,setQuery]=useState(''),[area,setArea]=useState('todas'),[mode,setMode]=useState<'team'|'tasks'>('team'),[edit,setEdit]=useState<Member|null>(null),[taskEdit,setTaskEdit]=useState<Task|null>(null);
-const load=async()=>{const r=await fetch('/api/committee',{cache:'no-store'});const j=await r.json() as Data & {error?:string};if(!r.ok)throw Error(j.error);setData(j)};
-useEffect(()=>{load().catch(e=>setError(e.message)).finally(()=>setLoading(false))},[]);
-const act=async(payload:Record<string,unknown>)=>{setBusy(true);setError('');setSuccess('');try{const r=await fetch('/api/committee',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const j=await r.json() as {error?:string};if(!r.ok)throw Error(j.error);await load();setSuccess('Alterações guardadas.');return true}catch(e){setError(e instanceof Error?e.message:'Erro inesperado');return false}finally{setBusy(false)}};
+const load=async()=>{const r=await fetch('/api/committee?slug='+encodeURIComponent(slug),{cache:'no-store'});const j=await r.json() as Data & {error?:string};if(!r.ok)throw Error(j.error);setData(j)};
+useEffect(()=>{load().catch(e=>setError(e.message)).finally(()=>setLoading(false))},[slug]);
+const act=async(payload:Record<string,unknown>)=>{setBusy(true);setError('');setSuccess('');try{const r=await fetch('/api/committee?slug='+encodeURIComponent(slug),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const j=await r.json() as {error?:string};if(!r.ok)throw Error(j.error);await load();setSuccess('Alterações guardadas.');return true}catch(e){setError(e instanceof Error?e.message:'Erro inesperado');return false}finally{setBusy(false)}};
 const filtered=useMemo(()=>data.members.filter(m=>(area==='todas'||m.area===area)&&`${m.name} ${m.role} ${m.area}`.toLowerCase().includes(query.toLowerCase())),[data.members,area,query]);
 const complete=data.tasks.filter(t=>t.status==='concluida').length;
 const nameOf=(id:number|null)=>data.members.find(m=>m.id===id)?.name||'Por atribuir';

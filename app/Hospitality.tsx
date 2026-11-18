@@ -10,11 +10,11 @@ const blankItem:Item={id:0,name:'',category:'bebida',description:'',stock:0,unit
 const blankSong:Song={id:0,title:'',artist:'',url:'',position:0,status:'fila'};
 const orderStatus:Record<string,string>={pendente:'Pendente',preparacao:'Em preparação',entregue:'Entregue',cancelado:'Cancelado'};
 
-export default function Hospitality({mode,tables}:{mode:'menu'|'orders'|'playlist';tables:Table[]}){
+export default function Hospitality({mode,tables,slug='emerson'}:{mode:'menu'|'orders'|'playlist';tables:Table[];slug?:string}){
 const [data,setData]=useState<Payload>({items:[],orders:[],songs:[]}),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(''),[success,setSuccess]=useState(''),[itemEdit,setItemEdit]=useState<Item|null>(null),[songEdit,setSongEdit]=useState<Song|null>(null),[category,setCategory]=useState('todos'),[search,setSearch]=useState(''),[orderTable,setOrderTable]=useState(1),[orderItem,setOrderItem]=useState(0),[qty,setQty]=useState(1),[note,setNote]=useState(''),[orderFilter,setOrderFilter]=useState('ativos');
-const load=async()=>{const res=await fetch('/api/hospitality',{cache:'no-store'});const json=await res.json() as Payload & {error?:string};if(!res.ok)throw Error(json.error);setData(json)};
-useEffect(()=>{load().catch(e=>setError(e.message)).finally(()=>setLoading(false))},[]);
-const act=async(body:Record<string,unknown>)=>{setBusy(true);setError('');setSuccess('');try{const res=await fetch('/api/hospitality',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const json=await res.json() as {error?:string};if(!res.ok)throw Error(json.error);await load();setSuccess('Alterações guardadas com sucesso.');return true}catch(e){setError(e instanceof Error?e.message:'Ocorreu um erro');return false}finally{setBusy(false)}};
+const load=async()=>{const res=await fetch('/api/hospitality?slug='+encodeURIComponent(slug),{cache:'no-store'});const json=await res.json() as Payload & {error?:string};if(!res.ok)throw Error(json.error);setData(json)};
+useEffect(()=>{load().catch(e=>setError(e.message)).finally(()=>setLoading(false))},[slug]);
+const act=async(body:Record<string,unknown>)=>{setBusy(true);setError('');setSuccess('');try{const res=await fetch('/api/hospitality?slug='+encodeURIComponent(slug),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const json=await res.json() as {error?:string};if(!res.ok)throw Error(json.error);await load();setSuccess('Alterações guardadas com sucesso.');return true}catch(e){setError(e instanceof Error?e.message:'Ocorreu um erro');return false}finally{setBusy(false)}};
 const products=useMemo(()=>data.items.filter(p=>(category==='todos'||p.category===category)&&p.name.toLowerCase().includes(search.toLowerCase())),[data.items,category,search]);
 const ordered=useMemo(()=>data.orders.filter(o=>orderFilter==='todos'||(orderFilter==='ativos'?!['entregue','cancelado'].includes(o.status):o.status===orderFilter)).sort((a,b)=>b.id-a.id),[data.orders,orderFilter]);
 const sortedSongs=[...data.songs].sort((a,b)=>a.position-b.position||a.id-b.id);

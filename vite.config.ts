@@ -6,8 +6,11 @@ import { configureToolEnvironment } from "./scripts/tool-environment.mjs";
 import { sites } from "./scripts/vite/sites-vite-plugin";
 import { connectorPreview } from "./scripts/vite/connector-preview-plugin.mjs";
 
-const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
-  "00000000-0000-4000-8000-000000000000";
+const CLOUDFLARE_D1_DATABASE_ID =
+  process.env.CLOUDFLARE_D1_DATABASE_ID ||
+  "b2450c68-fc38-4031-97e3-95bc4aa4ae6d";
+const CLOUDFLARE_D1_DATABASE_NAME =
+  process.env.CLOUDFLARE_D1_DATABASE_NAME || "eventox";
 
 const { d1, r2 } = hostingConfig;
 
@@ -22,8 +25,8 @@ const localBindingConfig = {
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          database_name: CLOUDFLARE_D1_DATABASE_NAME,
+          database_id: CLOUDFLARE_D1_DATABASE_ID,
         },
       ]
     : [],
