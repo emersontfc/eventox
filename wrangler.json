@@ -1,0 +1,13 @@
+{
+  "name": "eventox",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "eventox",
+      "database_id": "b2450c68-fc38-4031-97e3-95bc4aa4ae6d",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}
