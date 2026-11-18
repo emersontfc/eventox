@@ -33,7 +33,7 @@ npm run build
 
 # 4. Aplicar migrações da base de dados D1
 echo "🗄️ Aplicando migrações da base de dados D1..."
-npx wrangler d1 migrations apply eventox --local || echo "Migrações já aplicadas ou verificadas."
+npx wrangler d1 migrations apply eventox --local --config wrangler.jsonc || echo "Migrações já aplicadas ou verificadas."
 
 # 5. Verificar PM2
 if ! command -v pm2 &> /dev/null; then
