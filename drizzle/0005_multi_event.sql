@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS `events` (
 	`passcode` text DEFAULT '1234' NOT NULL,
 	`description` text DEFAULT '' NOT NULL,
 	`cover_theme` text DEFAULT 'gold' NOT NULL,
+	`photo_album_url` text,
 	`created_at` text NOT NULL
 );
 --> statement-breakpoint
@@ -27,8 +28,8 @@ ALTER TABLE `committee_tasks` ADD `event_id` integer DEFAULT 1 NOT NULL;
 --> statement-breakpoint
 ALTER TABLE `gallery_media` ADD `event_id` integer DEFAULT 1 NOT NULL;
 --> statement-breakpoint
-INSERT OR IGNORE INTO `events` (`id`, `slug`, `title`, `host_name`, `event_date`, `venue`, `passcode`, `description`, `cover_theme`, `created_at`) 
-VALUES (1, 'emerson', 'Gala de Graduação', 'Emerson Charles', '2026-12-11T14:00', 'Salão de Eventos Cajada II', 'emerson2026', 'A celebração de uma grande jornada académica e o início de um novo capítulo.', 'gold', '2026-11-18T20:00:00Z');
+INSERT OR IGNORE INTO `events` (`id`, `slug`, `title`, `host_name`, `event_date`, `venue`, `passcode`, `description`, `cover_theme`, `photo_album_url`, `created_at`) 
+VALUES (1, 'emerson', 'Gala de Graduação', 'Emerson Charles', '2026-12-11T14:00', 'Salão de Eventos Cajada II', 'emerson2026', 'A celebração de uma grande jornada académica e o início de um novo capítulo.', 'gold', 'https://photos.app.goo.gl/oXiw4Ppbi3X8NweLA', '2026-11-18T20:00:00Z');
 --> statement-breakpoint
 INSERT OR IGNORE INTO `guest_tables` (`id`, `event_id`, `name`, `capacity`) VALUES 
 (1, 1, 'Cirurgia Geral', 10),
