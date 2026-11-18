@@ -4,6 +4,7 @@ import { getDb } from '../../../db';
 import { events, guestTables, guests, settings } from '../../../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { planGuestImport } from '../../../lib/guest-import';
+import { hashPasscode } from '../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
       settingsObj.hostName = event.hostName;
       settingsObj.description = event.description;
       settingsObj.slug = event.slug;
-      settingsObj.passcode = event.passcode;
+      settingsObj.passcode = '';
       settingsObj.photoAlbumUrl = event.photoAlbumUrl || '';
     }
 
@@ -48,7 +49,16 @@ export async function GET(request: Request) {
       tables,
       guests: people,
       settings: settingsObj,
-      event,
+      event: event ? {
+        id: event.id,
+        slug: event.slug,
+        title: event.title,
+        hostName: event.hostName,
+        eventDate: event.eventDate,
+        venue: event.venue,
+        description: event.description,
+        photoAlbumUrl: event.photoAlbumUrl || '',
+      } : null,
     });
   } catch (e) {
     return NextResponse.json({ error: 'Não foi possível carregar os dados.' }, { status: 500 });
@@ -82,7 +92,11 @@ export async function POST(request: Request) {
       for (let i = 0; i < plan.records.length; i += 10) {
         inserts.push(db.insert(guests).values(plan.records.slice(i, i + 10).map(g => ({ ...g, eventId, createdAt: timestamp }))));
       }
-      await db.batch(inserts as [typeof inserts[number], ...typeof inserts]);
+      if (typeof (db as any).batch === 'function') {
+        await (db as any).batch(inserts);
+      } else {
+        await Promise.all(inserts);
+      }
       return NextResponse.json({ ok: true, imported: plan.records.length, skipped: plan.skipped });
     } else if (action === 'guest-save') {
       const id = Number(body.id || 0), tableId = Number(body.tableId), seat = Number(body.seat);
@@ -137,7 +151,7 @@ export async function POST(request: Request) {
           venue,
           ...(hostName ? { hostName } : {}),
           ...(description ? { description } : {}),
-          ...(passcode ? { passcode } : {}),
+          ...(passcode ? { passcode: hashPasscode(passcode) } : {}),
           ...(photoAlbumUrl !== undefined ? { photoAlbumUrl } : {}),
         }).where(eq(events.id, eventId));
       }

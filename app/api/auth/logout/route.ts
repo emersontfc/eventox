@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
+import { clearSessionCookie } from '../../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { slug?: string };
+    const body = await request.json().catch(() => ({})) as { slug?: string };
     const slug = String(body.slug || 'emerson').trim().toLowerCase();
 
     const response = NextResponse.json({ ok: true });
-    response.cookies.delete(`eventox_admin_${slug}`);
-    response.cookies.delete('eventox_master');
+    clearSessionCookie(response, slug);
     return response;
   } catch {
     return NextResponse.json({ ok: true });

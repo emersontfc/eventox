@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { env } from 'cloudflare:workers';
+import { storage } from '../../../lib/storage';
 import { getDb } from '../../../db';
 import { galleryMedia, settings } from '../../../db/schema';
 import { isAdmin } from '../../admin-auth';
@@ -38,7 +38,7 @@ export async function POST(request:Request){
         await db.update(galleryMedia).set({status:body.status, ...(body.status==='aprovado'&&item.driveStatus!=='sincronizado'?{driveStatus:'pendente',driveError:''}:{})}).where(eq(galleryMedia.id,id));
         if(body.status==='aprovado'&&item.driveStatus!=='sincronizado'&&await isDriveConnected())await syncDriveItem(id);
       }else if(body.action==='delete'){
-        await env.BUCKET.delete(item.key);await db.delete(galleryMedia).where(eq(galleryMedia.id,id));
+        await storage.delete(item.key);await db.delete(galleryMedia).where(eq(galleryMedia.id,id));
       }else return failure('Ação desconhecida.');
       return NextResponse.json({ok:true});
     }
@@ -61,9 +61,9 @@ export async function POST(request:Request){
     if(!signatureOk)return failure('O ficheiro não corresponde ao formato declarado.');
     const suffix:Record<string,string>={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/heic':'heic','video/mp4':'mp4','video/webm':'webm','video/quicktime':'mov'};
     const path=`graduacao-memorias/${crypto.randomUUID()}.${suffix[file.type]}`;
-    await env.BUCKET.put(path,data,{httpMetadata:{contentType:file.type}});
+    await storage.put(path,data,{httpMetadata:{contentType:file.type}});
     try{await db.insert(galleryMedia).values({key:path,mime:file.type,size:file.size,originalName:file.name.slice(0,160),uploader,album,status:'pendente',createdAt:new Date().toISOString(),ipHash:hashed})}
-    catch(e){await env.BUCKET.delete(path);throw e}
+    catch(e){await storage.delete(path);throw e}
     return NextResponse.json({ok:true,message:'Recebido! A fotografia ou vídeo será analisado antes da publicação.'});
   }catch{return failure('Não foi possível concluir o envio.',500)}
 }

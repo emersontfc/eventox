@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../db';
-import { events, guestTables, settings } from '../../../db/schema';
+import { events, guestTables } from '../../../db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { hashPasscode, setSessionCookie } from '../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,13 +83,14 @@ export async function POST(request: Request) {
     }
 
     const timestamp = new Date().toISOString();
+    const securePasscodeHash = hashPasscode(passcode || '1234');
     const [inserted] = await db.insert(events).values({
       slug,
       title,
       hostName,
       eventDate,
       venue: venue || 'Local a definir',
-      passcode: passcode || '1234',
+      passcode: securePasscodeHash,
       description,
       coverTheme,
       photoAlbumUrl: photoAlbumUrl || null,
@@ -106,7 +108,11 @@ export async function POST(request: Request) {
       await db.insert(guestTables).values(tablesToInsert).onConflictDoNothing();
     }
 
-    return NextResponse.json({ ok: true, slug, event: inserted });
+    const response = NextResponse.json({ ok: true, slug, event: { id: inserted.id, slug: inserted.slug, title: inserted.title } });
+    if (inserted?.id) {
+      setSessionCookie(response, slug, inserted.id);
+    }
+    return response;
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Erro ao criar evento.' }, { status: 400 });
   }

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { env } from 'cloudflare:workers';
 import { getDb } from '../../../../db';
 import { galleryMedia } from '../../../../db/schema';
 import { and, eq, asc } from 'drizzle-orm';
@@ -7,7 +6,7 @@ import { and, eq, asc } from 'drizzle-orm';
 export const dynamic='force-dynamic';
 const response=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{'Cache-Control':'no-store'}});
 function permitted(request:Request){
-  const configured=(env as unknown as {GOOGLE_DRIVE_SYNC_SECRET?:string}).GOOGLE_DRIVE_SYNC_SECRET;
+  const configured = process.env.GOOGLE_DRIVE_SYNC_SECRET;
   const provided=request.headers.get('Authorization')||'';
   if(!configured||configured.length<32||!provided.startsWith('Bearer '))return false;
   const value=provided.slice(7);if(value.length!==configured.length)return false;
