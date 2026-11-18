@@ -44,15 +44,14 @@ fi
 # 6. Iniciar ou Reiniciar processo no PM2
 echo "🚀 Iniciando/Reiniciando serviço no PM2..."
 if pm2 describe eventox > /dev/null 2>&1; then
-    pm2 reload eventox
-else
-    pm2 start ecosystem.config.cjs
+    pm2 delete eventox
 fi
+pm2 start ecosystem.config.cjs
 
 pm2 save
 
 echo ""
 echo "=========================================="
 echo "✅ Eventox está a correr com sucesso no PM2!"
-echo "Porta local: 127.0.0.1:3000"
+echo "Porta local: 127.0.0.1:3050"
 echo "=========================================="
