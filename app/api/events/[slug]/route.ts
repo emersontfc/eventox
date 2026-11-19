@@ -106,6 +106,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       title?: string;
       artist?: string;
       url?: string;
+      theme?: string;
     };
 
     const action = body.action || 'rsvp-confirm';
@@ -289,6 +290,19 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
           position: newSong.position,
         },
       });
+    }
+
+    // 5. Update theme / template (Personalização de design da página)
+    if (action === 'update-theme') {
+      const isOwnerOrAdmin = await isEventAdmin(slug);
+      if (!isOwnerOrAdmin) {
+        return NextResponse.json({ error: 'Acesso restrito à organização do evento.' }, { status: 403 });
+      }
+
+      const newTheme = String(body.theme || 'gala-gold').trim().toLowerCase();
+      await db.update(events).set({ coverTheme: newTheme }).where(eq(events.id, event.id));
+
+      return NextResponse.json({ ok: true, theme: newTheme });
     }
 
     return NextResponse.json({ error: 'Ação não suportada.' }, { status: 400 });

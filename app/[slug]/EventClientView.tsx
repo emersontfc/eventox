@@ -6,7 +6,7 @@ import {
   UtensilsCrossed, CheckCircle2, UserCheck, X, Shield, Clock3, Heart,
   Camera, ExternalLink, Share2, Music2, Navigation, Shirt,
   CheckCheck, Copy, Plus, UserPlus, Play, Send, MessageSquare,
-  Award, QrCode as QrCodeIcon, Disc3
+  Award, QrCode as QrCodeIcon, Disc3, Palette
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import Countdown from '../../components/Countdown';
@@ -14,6 +14,9 @@ import AdminDashboard from '../AdminDashboard';
 import AuthModal from '../../components/AuthModal';
 import Confetti from '../../components/Confetti';
 import EmbeddedMusicPlayer, { PlayingSong } from '../../components/EmbeddedMusicPlayer';
+import { resolveEventTheme } from '../../lib/event-themes';
+import EventGallerySection from '../../components/EventGallerySection';
+import EventThemeSelector from '../../components/EventThemeSelector';
 
 interface EventData {
   id: number;
@@ -66,6 +69,11 @@ export default function EventClientView({
   const [viewMode, setViewMode] = useState<'guest' | 'admin'>(initialAdmin ? 'admin' : 'guest');
   const [activeTab, setActiveTab] = useState<'seating' | 'music' | 'schedule' | 'menu' | 'mural' | 'gallery' | 'info'>('seating');
   const [showConfetti, setShowConfetti] = useState(false);
+
+  // Theme & Template state
+  const [currentTheme, setCurrentTheme] = useState(event.coverTheme || 'gala-gold');
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const theme = resolveEventTheme(currentTheme);
 
   // Search & RSVP state
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,6 +155,7 @@ export default function EventClientView({
         const res = await fetch(`/api/events/${encodeURIComponent(event.slug)}`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = (await res.json()) as any;
+        if (data.event?.coverTheme) setCurrentTheme(data.event.coverTheme);
         if (data.playlist) setPlaylist(data.playlist);
         if (data.guestbook) setMuralMessages(data.guestbook);
         if (data.stats?.confirmedGuests) setConfirmedCount(data.stats.confirmedGuests);
@@ -398,9 +407,20 @@ export default function EventClientView({
         </div>
         <div className="portal-nav-actions">
           {isAdmin ? (
-            <button className="primary-pill" onClick={() => setViewMode('admin')}>
-              <Shield size={16} /> Painel de Organização
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="outline-pill"
+                onClick={() => setShowThemeModal(true)}
+                style={{ borderColor: theme.accentColor, color: theme.accentColor, cursor: 'pointer', background: 'transparent' }}
+                title="Mudar Template & Identidade Visual do Evento"
+              >
+                <Palette size={15} /> Escolher Template
+              </button>
+              <button className="primary-pill" onClick={() => setViewMode('admin')}>
+                <Shield size={16} /> Painel de Organização
+              </button>
+            </div>
           ) : (
             <button className="outline-pill" onClick={() => setAuthModalOpen(true)}>
               <Lock size={15} /> Acesso de Equipa
@@ -409,15 +429,31 @@ export default function EventClientView({
         </div>
       </header>
 
-      {/* Hero Section with refined aesthetics */}
-      <section className="portal-hero">
+      {/* Hero Section with refined aesthetics based on chosen template */}
+      <section className="portal-hero" style={{ background: theme.heroGradient }}>
         <div className="portal-hero-container">
           {/* Monogram Crest */}
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/20 via-neutral-900 to-rose-950/40 shadow-xl shadow-amber-950/20 text-amber-300 font-serif font-black text-2xl tracking-wider">
+          <div
+            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 bg-gradient-to-br from-neutral-900 to-neutral-950 font-serif font-black text-2xl tracking-wider transition-all duration-300"
+            style={{
+              borderColor: theme.accentColor,
+              color: theme.accentColor,
+              boxShadow: `0 0 35px ${theme.accentColor}40`,
+            }}
+          >
             {hostInitials}
           </div>
 
-          <span className="portal-badge">✦ CELEBRAÇÃO & CONVITE SOLENE ✦</span>
+          <span
+            className="portal-badge transition-colors duration-300"
+            style={{
+              background: theme.badgeStyle.bg,
+              border: theme.badgeStyle.border,
+              color: theme.badgeStyle.text,
+            }}
+          >
+            ✦ CELEBRAÇÃO & CONVITE SOLENE ✦
+          </span>
           <h1 className="portal-title">{event.title}</h1>
           <p className="portal-host">
             Anfitrião de Honra: <strong>{event.hostName}</strong>
@@ -444,7 +480,7 @@ export default function EventClientView({
             )}
           </div>
 
-          {/* Quick CTA button */}
+          {/* Quick CTA buttons */}
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button
               onClick={() => {
@@ -452,8 +488,16 @@ export default function EventClientView({
                 const el = document.getElementById('portal-content-anchor');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="primary-button"
-              style={{ fontSize: '13.5px', padding: '12px 28px', cursor: 'pointer' }}
+              className="primary-button transition-transform duration-200 hover:scale-[1.02]"
+              style={{
+                background: theme.buttonPrimary.bg,
+                color: theme.buttonPrimary.text,
+                boxShadow: theme.buttonPrimary.shadow,
+                border: 0,
+                fontSize: '13.5px',
+                padding: '12px 28px',
+                cursor: 'pointer',
+              }}
             >
               🎟️ Consultar Meu Lugar & Bilhete VIP
             </button>
@@ -467,6 +511,17 @@ export default function EventClientView({
               style={{ padding: '12px 20px', cursor: 'pointer', background: 'white' }}
             >
               <Music2 size={16} className="text-amber-600" /> Playlist da Festa
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('gallery');
+                const el = document.getElementById('portal-content-anchor');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="outline-pill"
+              style={{ padding: '12px 20px', cursor: 'pointer', background: 'white' }}
+            >
+              <Camera size={16} className="text-rose-600" /> Fotos da Festa
             </button>
           </div>
         </div>
@@ -1210,64 +1265,13 @@ export default function EventClientView({
         </section>
       )}
 
-      {/* TAB 6: SHARED PHOTO GALLERY */}
+      {/* TAB 6: INTERACTIVE PHOTO GALLERY & DIRECT PHONE UPLOAD */}
       {activeTab === 'gallery' && (
-        <section className="portal-gallery-section">
-          <div className="portal-gallery-card">
-            <div className="gallery-header">
-              <span className="overline">✦ REGISTO DE MEMÓRIAS & FOTOS COLETIVAS</span>
-              <h2>Galeria Compartilhada do Evento</h2>
-              <p>
-                Tira fotografias durante a celebração e partilha-as connosco! As fotos enviadas ficam guardadas no álbum oficial do anfitrião em resolução máxima.
-              </p>
-            </div>
-
-            {event.photoAlbumUrl ? (
-              <div className="gallery-content">
-                <div className="gallery-action-box">
-                  <a
-                    href={event.photoAlbumUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="gallery-primary-button"
-                  >
-                    <Camera size={22} />
-                    <span>Adicionar Fotos ao Álbum Oficial 📸</span>
-                  </a>
-                  <a
-                    href={event.photoAlbumUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="gallery-secondary-button"
-                  >
-                    <ExternalLink size={17} />
-                    <span>Ver Álbum no Google Fotos ↗</span>
-                  </a>
-                </div>
-
-                <div className="gallery-features-row">
-                  <div className="gallery-feature-pill">
-                    <span className="pill-icon">📱</span>
-                    <span>Upload direto pelo telemóvel</span>
-                  </div>
-                  <div className="gallery-feature-pill">
-                    <span className="pill-icon">🌟</span>
-                    <span>Qualidade original (HD / 4K)</span>
-                  </div>
-                  <div className="gallery-feature-pill">
-                    <span className="pill-icon">⚡</span>
-                    <span>Sem registo obrigatório</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="gallery-empty-state">
-                <Camera size={32} />
-                <p>O link do álbum partilhado estará disponível aqui durante o evento.</p>
-              </div>
-            )}
-          </div>
-        </section>
+        <EventGallerySection
+          slug={event.slug}
+          photoAlbumUrl={event.photoAlbumUrl}
+          onPhotoUploaded={() => setShowConfetti(true)}
+        />
       )}
 
       {/* TAB 7: VENUE & DRESS CODE */}
@@ -1332,6 +1336,36 @@ export default function EventClientView({
         onClose={() => setActivePlayingSong(null)}
         mode="docked"
       />
+
+      {/* Luxury Theme Selector Modal for Organizers */}
+      {showThemeModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md"
+          onClick={() => setShowThemeModal(false)}
+        >
+          <div
+            className="w-full max-w-3xl overflow-hidden rounded-2xl bg-neutral-950 p-6 shadow-2xl border border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={() => setShowThemeModal(false)}
+                className="rounded-lg p-1.5 text-neutral-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <EventThemeSelector
+              currentTheme={currentTheme}
+              slug={event.slug}
+              onThemeChanged={(t) => {
+                setCurrentTheme(t);
+                setShowConfetti(true);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="portal-footer">

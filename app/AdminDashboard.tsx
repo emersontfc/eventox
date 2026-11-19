@@ -15,6 +15,7 @@ import Gallery from './Gallery';
 import Countdown from '../components/Countdown';
 import TeamManagement from '../components/TeamManagement';
 import ScreenLiveDashboard from '../components/ScreenLiveDashboard';
+import EventThemeSelector from '../components/EventThemeSelector';
 
 type Table = { id: number; name: string; capacity: number };
 type Guest = { id: number; name: string; phone: string; tableId: number; seat: number; status: string; notes: string };
@@ -30,6 +31,7 @@ type Data = {
     eventDate: string;
     venue: string;
     description: string;
+    coverTheme?: string;
   };
 };
 
@@ -583,6 +585,20 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                     </a>
                   </div>
                 )}
+              </div>
+
+              {/* Seletor Visual de Templates & Identidade do Evento */}
+              <div style={{ marginTop: '24px' }}>
+                <EventThemeSelector
+                  currentTheme={data.event?.coverTheme || 'gala-gold'}
+                  slug={slug}
+                  onThemeChanged={(newTheme) => {
+                    setData((prev) => ({
+                      ...prev,
+                      event: prev.event ? { ...prev.event, coverTheme: newTheme } : prev.event,
+                    }));
+                  }}
+                />
               </div>
 
               <div className="settings-card" style={{ marginTop: '24px' }}>
