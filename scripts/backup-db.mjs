@@ -2,12 +2,20 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'eventox.db');
+let dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'eventox.db');
 const backupDir = path.join(process.cwd(), 'backups');
 
+// Fallback: check if database exists in alternate deployment directory (e.g. eventox-vps)
 if (!fs.existsSync(dbPath)) {
-  console.error(`❌ Base de dados não encontrada em: ${dbPath}`);
-  process.exit(1);
+  const altPath = path.resolve(process.cwd(), '../eventox-vps/data/eventox.db');
+  if (fs.existsSync(altPath)) {
+    console.log(`ℹ️ Base de dados detectada em caminho alternativo: ${altPath}`);
+    dbPath = altPath;
+  } else {
+    console.log(`ℹ️ Nenhuma base de dados existente em: ${dbPath}`);
+    console.log(`💡 Para inicializar a base de dados com as tabelas e seeds, execute: node scripts/migrate-db.mjs`);
+    process.exit(0);
+  }
 }
 
 if (!fs.existsSync(backupDir)) {

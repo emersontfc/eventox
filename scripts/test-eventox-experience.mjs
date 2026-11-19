@@ -1,10 +1,16 @@
 import Database from 'better-sqlite3';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.resolve(__dirname, '..', 'data', 'eventox.db');
+const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, '..', 'data', 'eventox.db');
+const dataDir = path.dirname(dbPath);
+
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
 
 console.log('================================================================');
 console.log('🎬 EVENTOX EXPERIENCE — SUÍTE DE TESTES DO ESTÚDIO LIVE');
@@ -12,6 +18,40 @@ console.log('================================================================');
 console.log(`Base de dados SQLite: ${dbPath}\n`);
 
 const db = new Database(dbPath);
+db.pragma('journal_mode = WAL');
+
+// Ensure tables exist by running migrations if needed
+const drizzleDir = path.resolve(__dirname, '..', 'drizzle');
+if (fs.existsSync(drizzleDir)) {
+  const sqlFiles = fs.readdirSync(drizzleDir).filter(f => f.endsWith('.sql')).sort();
+  for (const f of sqlFiles) {
+    const rawSql = fs.readFileSync(path.join(drizzleDir, f), 'utf-8');
+    const statements = rawSql.split('--> statement-breakpoint');
+    for (const stmt of statements) {
+      const trimmed = stmt.trim();
+      if (!trimmed) continue;
+      try {
+        db.exec(trimmed);
+      } catch (err) {
+        if (!err.message?.includes('already exists') && !err.message?.includes('duplicate column')) {
+          // ignore already existing tables
+        }
+      }
+    }
+  }
+}
+
+// Ensure base event exists
+let [event] = db.prepare("SELECT * FROM events WHERE slug = 'emerson'").all();
+if (!event) {
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO events (slug, title, host_name, event_date, venue, description, cover_theme, created_at, updated_at)
+    VALUES ('emerson', 'Gala de Graduação em Medicina', 'Dr. Emerson Charles', '2026-12-11T14:00', 'Salão Nobre Cajada II, Maputo', 'Celebração de uma grande jornada académica.', 'gala-gold', ?, ?)
+  `).run(now, now);
+  [event] = db.prepare("SELECT * FROM events WHERE slug = 'emerson'").all();
+}
+
 let passed = 0;
 let failed = 0;
 
@@ -68,7 +108,6 @@ for (const col of expectedCols) {
 // FASE 2: ESTADO CONTROLADO PELO SERVIDOR & ESTÚDIO LIVE
 // -------------------------------------------------------------
 console.log('\nFASE 2: Motor de Apresentação com Estado Centralizado no Servidor');
-const [event] = db.prepare("SELECT * FROM events WHERE slug = 'emerson'").all();
 assert(event !== undefined, 'Evento mestre do teste encontrado (emerson)');
 
 // Ensure settings exist
@@ -194,7 +233,6 @@ const activeSession = db.prepare("SELECT * FROM game_sessions WHERE id = ?").get
 assert(activeSession.status === 'question_active', 'Pergunta lançada para o ecrã e telemóveis dos convidados');
 
 // 6. Submit Answers
-// P1 answers correctly in 2 seconds (gets 950 points)
 db.prepare(`
   INSERT INTO game_answers (session_id, participant_id, question_id, answer, is_correct, points, response_ms, created_at)
   VALUES (?, ?, ?, '0', 1, 950, 2000, ?)
@@ -204,7 +242,6 @@ db.prepare(`
   UPDATE game_participants SET score = 950, streak = 1 WHERE id = ?
 `).run(p1.lastInsertRowid);
 
-// P2 answers wrongly (gets 0 points)
 db.prepare(`
   INSERT INTO game_answers (session_id, participant_id, question_id, answer, is_correct, points, response_ms, created_at)
   VALUES (?, ?, ?, '2', 0, 0, 4500, ?)
