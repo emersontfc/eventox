@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../../db';
-import { events, guestTables, guests, menuItems, playlist, galleryMedia } from '../../../../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { events, guestTables, guests, menuItems, playlist, galleryMedia, guestbookMessages } from '../../../../db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { isEventAdmin } from '../../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -35,15 +35,23 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     // Get menu highlights for guests showcase
     const menu = await db.select().from(menuItems).where(
       and(eq(menuItems.eventId, event.id), eq(menuItems.available, true))
-    ).limit(8);
+    ).limit(12);
 
-    // Get songs for playlist showcase
-    const songs = await db.select().from(playlist).where(eq(playlist.eventId, event.id)).limit(10);
+    // Get all songs for playlist showcase ordered by position
+    const songs = await db.select().from(playlist)
+      .where(eq(playlist.eventId, event.id))
+      .orderBy(playlist.position, playlist.id);
+
+    // Get approved guestbook messages for live guestbook section
+    const guestbook = await db.select().from(guestbookMessages)
+      .where(and(eq(guestbookMessages.eventId, event.id), eq(guestbookMessages.status, 'aprovado')))
+      .orderBy(desc(guestbookMessages.id))
+      .limit(20);
 
     // Get approved media highlights
     const media = await db.select().from(galleryMedia).where(
       and(eq(galleryMedia.eventId, event.id), eq(galleryMedia.status, 'aprovado'))
-    ).orderBy(desc(galleryMedia.id)).limit(9);
+    ).orderBy(desc(galleryMedia.id)).limit(12);
 
     return NextResponse.json({
       event: {
@@ -67,7 +75,8 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       },
       tables: tables.map((t: any) => ({ id: t.id, name: t.name, capacity: t.capacity })),
       menu: menu.map((m: any) => ({ id: m.id, name: m.name, category: m.category, description: m.description })),
-      playlist: songs.map((s: any) => ({ id: s.id, title: s.title, artist: s.artist, url: s.url })),
+      playlist: songs.map((s: any) => ({ id: s.id, title: s.title, artist: s.artist, url: s.url, status: s.status, position: s.position })),
+      guestbook: guestbook.map((g: any) => ({ id: g.id, senderName: g.senderName, relationship: g.relationship, message: g.message, createdAt: g.createdAt })),
       gallery: media.map((m: any) => ({ id: m.id, key: m.key, mime: m.mime, uploader: m.uploader, createdAt: m.createdAt })),
       admin,
     });
@@ -94,6 +103,9 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       phone?: string;
       status?: string;
       notes?: string;
+      title?: string;
+      artist?: string;
+      url?: string;
     };
 
     const action = body.action || 'rsvp-confirm';
@@ -234,6 +246,47 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
           seat: newGuest.seat,
           status: newGuest.status,
           notes: newGuest.notes,
+        },
+      });
+    }
+
+    // 4. Song request from guest (Músicas pedidas pelos convidados)
+    if (action === 'song-request') {
+      const title = String(body.title || '').trim();
+      const artist = String(body.artist || '').trim();
+      const url = String(body.url || '').trim();
+      const guestName = String(body.name || '').trim();
+
+      if (!title || title.length < 2) {
+        throw new Error('Por favor indica o nome ou título da música.');
+      }
+
+      const [position] = await db.select({ max: sql<number>`coalesce(max(${playlist.position}),0)` })
+        .from(playlist)
+        .where(eq(playlist.eventId, event.id));
+
+      const formattedArtist = artist
+        ? (guestName ? `${artist} · Sugerido por ${guestName}` : artist)
+        : (guestName ? `Sugerido por ${guestName}` : 'Pedido de Convidado');
+
+      const [newSong] = await db.insert(playlist).values({
+        eventId: event.id,
+        title,
+        artist: formattedArtist,
+        url,
+        position: Number(position?.max || 0) + 1,
+        status: 'fila',
+      }).returning();
+
+      return NextResponse.json({
+        ok: true,
+        song: {
+          id: newSong.id,
+          title: newSong.title,
+          artist: newSong.artist,
+          url: newSong.url,
+          status: newSong.status,
+          position: newSong.position,
         },
       });
     }
