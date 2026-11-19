@@ -13,6 +13,7 @@ module.exports = {
         HOST: "127.0.0.1",
         PORT: "3050",
         DATABASE_PATH: "./data/eventox.db",
+        SESSION_SECRET: process.env.SESSION_SECRET || "eventox_super_secure_production_secret_2026_kazix_key_live_55a9aa80",
       },
     },
   ],

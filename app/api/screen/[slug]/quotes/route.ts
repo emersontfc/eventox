@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { events, quotesLibrary } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { getEventMembershipContext, logAuditAction } from '@/lib/auth';
+import { getEventMembershipContext, logAuditAction, isEventAdmin } from '@/lib/auth';
 import { hasPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -34,9 +34,10 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await context.params;
+    const isOwnerOrAdmin = await isEventAdmin(slug);
     const authContext = await getEventMembershipContext(slug);
 
-    if (!authContext || !hasPermission(authContext.role, authContext.permissions, 'quotes:manage')) {
+    if (!isOwnerOrAdmin && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'quotes:manage'))) {
       return NextResponse.json({ error: 'Permissão insuficiente para gerir citações.' }, { status: 403 });
     }
 
@@ -50,7 +51,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     };
 
     const db = getDb();
-    const eventId = authContext.event.id;
+    const [eventRow] = await db.select().from(events).where(eq(events.slug, slug.toLowerCase().trim())).limit(1);
+    const eventId = authContext?.event?.id || eventRow?.id || 1;
     const now = new Date().toISOString();
 
     if (body.action === 'add' && body.quote) {

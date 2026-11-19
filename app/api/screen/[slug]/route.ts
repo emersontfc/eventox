@@ -5,7 +5,7 @@ import {
   galleryMedia, quotesLibrary, guests
 } from '@/db/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
-import { getEventMembershipContext, logAuditAction } from '@/lib/auth';
+import { getEventMembershipContext, logAuditAction, isEventAdmin } from '@/lib/auth';
 import { hasPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -133,9 +133,10 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await context.params;
+    const isOwnerOrAdmin = await isEventAdmin(slug);
     const authContext = await getEventMembershipContext(slug);
 
-    if (!authContext || !hasPermission(authContext.role, authContext.permissions, 'screen:control')) {
+    if (!isOwnerOrAdmin && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'screen:control'))) {
       return NextResponse.json({ error: 'Acesso reservado ao operador audiovisual.' }, { status: 403 });
     }
 
@@ -164,7 +165,13 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     };
 
     const db = getDb();
-    const eventId = authContext.event.id;
+    const [eventRow] = await db.select().from(events).where(eq(events.slug, slug.toLowerCase().trim())).limit(1);
+    if (!eventRow) {
+      return NextResponse.json({ error: 'Evento não encontrado.' }, { status: 404 });
+    }
+
+    const eventId = authContext?.event?.id || eventRow.id;
+    const userId = authContext?.user?.id || eventRow.ownerId || 1;
     const now = new Date().toISOString();
 
     const action = body.action || '';
@@ -178,8 +185,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
       await logAuditAction({
         eventId,
-        userId: authContext.user.id,
-        userName: authContext.user.name,
+        userId,
+        userName: authContext?.user?.name || 'Administrador',
         action: 'screen:set_scene',
         entity: 'screen_settings',
         details: { sceneId: body.sceneId },
@@ -221,8 +228,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
       await logAuditAction({
         eventId,
-        userId: authContext.user.id,
-        userName: authContext.user.name,
+        userId,
+        userName: authContext?.user?.name || 'Administrador',
         action: 'screen:emergency_mode',
         entity: 'screen_settings',
         details: { emergencyMode: body.emergencyMode, message: body.emergencyMessage },

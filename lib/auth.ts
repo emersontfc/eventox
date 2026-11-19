@@ -6,19 +6,13 @@ import crypto from 'node:crypto';
 import type { NextResponse } from 'next/server';
 import { hasPermission } from './permissions';
 
-// Fallback session secret generated securely if not provided in environment
-let _fallbackSecret: string | null = null;
+// Fallback session secret - constant key ensures server reloads don't invalidate active sessions
+const DEFAULT_SESSION_SECRET = 'eventox_super_secure_production_secret_2026_kazix_key_live_55a9aa80';
 export function getSessionSecret(): string {
   if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 16) {
     return process.env.SESSION_SECRET;
   }
-  if (!_fallbackSecret) {
-    _fallbackSecret = crypto.randomBytes(32).toString('hex');
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('[SEGURANÇA] SESSION_SECRET não definida no ambiente. Usando segredo volátil.');
-    }
-  }
-  return _fallbackSecret;
+  return DEFAULT_SESSION_SECRET;
 }
 
 export interface SessionData {
@@ -115,6 +109,10 @@ export function verifyToken<T>(token: string): T | null {
     .createHmac('sha256', getSessionSecret())
     .update(payloadStr)
     .digest('base64url');
+
+  if (Buffer.byteLength(signature) !== Buffer.byteLength(expectedSignature)) {
+    return null;
+  }
 
   try {
     const isSigValid = crypto.timingSafeEqual(

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { events, screenMessages, guests, screenSettings } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { getEventMembershipContext, logAuditAction } from '@/lib/auth';
+import { getEventMembershipContext, logAuditAction, isEventAdmin } from '@/lib/auth';
 import { hasPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -10,13 +10,17 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await context.params;
+    const isOwnerOrAdmin = await isEventAdmin(slug);
     const authContext = await getEventMembershipContext(slug);
 
-    if (!authContext || !hasPermission(authContext.role, authContext.permissions, 'screen:messages')) {
+    if (!isOwnerOrAdmin && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'screen:messages'))) {
       return NextResponse.json({ error: 'Acesso reservado ao operador audiovisual.' }, { status: 403 });
     }
 
     const db = getDb();
+    const [eventRow] = await db.select().from(events).where(eq(events.slug, slug.toLowerCase().trim())).limit(1);
+    const eventId = authContext?.event?.id || eventRow?.id || 1;
+
     const rows = await db
       .select({
         id: screenMessages.id,
@@ -30,7 +34,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
         guestId: screenMessages.guestId,
       })
       .from(screenMessages)
-      .where(eq(screenMessages.eventId, authContext.event.id))
+      .where(eq(screenMessages.eventId, eventId))
       .orderBy(desc(screenMessages.id))
       .limit(50);
 
@@ -46,9 +50,10 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await context.params;
+    const isOwnerOrAdmin = await isEventAdmin(slug);
     const authContext = await getEventMembershipContext(slug);
 
-    if (!authContext) {
+    if (!isOwnerOrAdmin && !authContext) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
     }
 
@@ -63,12 +68,18 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     };
 
     const db = getDb();
-    const eventId = authContext.event.id;
+    const [eventRow] = await db.select().from(events).where(eq(events.slug, slug.toLowerCase().trim())).limit(1);
+    if (!eventRow) {
+      return NextResponse.json({ error: 'Evento não encontrado.' }, { status: 404 });
+    }
+
+    const eventId = authContext?.event?.id || eventRow.id;
+    const userId = authContext?.user?.id || eventRow.ownerId || 1;
     const now = new Date().toISOString();
 
     // 1. Create custom announcement or message
     if (body.action === 'create' && body.text) {
-      if (!hasPermission(authContext.role, authContext.permissions, 'screen:messages')) {
+      if (!isOwnerOrAdmin && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'screen:messages'))) {
         return NextResponse.json({ error: 'Permissão insuficiente.' }, { status: 403 });
       }
 
@@ -80,8 +91,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
           text: body.text.trim(),
           status: body.status || 'aprovado',
           priority: body.priority || 1,
-          createdBy: authContext.user.id,
-          approvedBy: authContext.user.id,
+          createdBy: userId,
+          approvedBy: userId,
           createdAt: now,
         })
         .returning();
@@ -93,8 +104,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
       await logAuditAction({
         eventId,
-        userId: authContext.user.id,
-        userName: authContext.user.name,
+        userId,
+        userName: authContext?.user?.name || 'Administrador',
         action: 'screen:create_message',
         entity: 'screen_messages',
         entityId: newMsg.id,
@@ -106,13 +117,13 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
     // 2. Moderate (approve, display, or cancel)
     if (body.action === 'moderate' && body.messageId && body.status) {
-      if (!hasPermission(authContext.role, authContext.permissions, 'screen:messages')) {
+      if (!isOwnerOrAdmin && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'screen:messages'))) {
         return NextResponse.json({ error: 'Permissão insuficiente.' }, { status: 403 });
       }
 
       const updates: Partial<typeof screenMessages.$inferInsert> = {
         status: body.status,
-        approvedBy: authContext.user.id,
+        approvedBy: userId,
       };
 
       if (body.text) {
@@ -179,9 +190,9 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
           guestId: guest.id,
           category,
           text,
-          status: 'pendente', // Requires AV operator approval or auto-approval
+          status: 'pendente',
           priority: 0,
-          createdBy: authContext.user.id,
+          createdBy: userId,
           createdAt: now,
         })
         .returning();

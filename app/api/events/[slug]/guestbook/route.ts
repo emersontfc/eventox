@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { events, guestbookMessages } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { getEventMembershipContext, logAuditAction } from '@/lib/auth';
+import { getEventMembershipContext, logAuditAction, isEventAdmin } from '@/lib/auth';
 import { hasPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -17,8 +17,9 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       return NextResponse.json({ error: 'Evento não encontrado.' }, { status: 404 });
     }
 
+    const isOwnerOrAdmin = await isEventAdmin(slug);
     const authContext = await getEventMembershipContext(slug);
-    const canModerate = authContext && hasPermission(authContext.role, authContext.permissions, 'gallery:moderate');
+    const canModerate = isOwnerOrAdmin || (authContext && hasPermission(authContext.role, authContext.permissions, 'gallery:moderate'));
 
     const query = db
       .select()
@@ -101,7 +102,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     const { slug } = await context.params;
     const authContext = await getEventMembershipContext(slug);
 
-    if (!authContext || !hasPermission(authContext.role, authContext.permissions, 'gallery:moderate')) {
+    const isOwnerOrAdmin = await isEventAdmin(slug);
+    if (!isOwnerOrAdmin && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'gallery:moderate'))) {
       return NextResponse.json({ error: 'Permissão insuficiente para moderar o mural.' }, { status: 403 });
     }
 
@@ -115,18 +117,26 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     }
 
     const db = getDb();
+    const [eventRow] = await db.select().from(events).where(eq(events.slug, slug.toLowerCase().trim())).limit(1);
+    if (!eventRow) {
+      return NextResponse.json({ error: 'Evento não encontrado.' }, { status: 404 });
+    }
+
+    const eventId = authContext?.event?.id || eventRow.id;
+    const userId = authContext?.user?.id || eventRow.ownerId || 1;
+
     await db
       .update(guestbookMessages)
       .set({
         status: body.status,
-        approvedBy: authContext.user.id,
+        approvedBy: userId,
       })
-      .where(and(eq(guestbookMessages.id, body.messageId), eq(guestbookMessages.eventId, authContext.event.id)));
+      .where(and(eq(guestbookMessages.id, body.messageId), eq(guestbookMessages.eventId, eventId)));
 
     await logAuditAction({
-      eventId: authContext.event.id,
-      userId: authContext.user.id,
-      userName: authContext.user.name,
+      eventId,
+      userId,
+      userName: authContext?.user?.name || 'Administrador',
       action: 'guestbook:moderate',
       entity: 'guestbook_messages',
       entityId: body.messageId,
