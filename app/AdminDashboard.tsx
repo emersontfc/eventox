@@ -5,6 +5,7 @@ import {
   LayoutDashboard, MapPin, Menu, Music2, Plus, Search, Settings2, Sparkles,
   Trash2, Users, UtensilsCrossed, ClipboardList, X, LogOut, ExternalLink,
   Copy, CheckCheck, Link2, Share2, QrCode, Monitor, Shield, UserCheck, Radio,
+  MonitorPlay, Palette,
   type LucideIcon
 } from 'lucide-react';
 import QRCode from 'qrcode';
@@ -15,6 +16,7 @@ import Gallery from './Gallery';
 import Countdown from '../components/Countdown';
 import TeamManagement from '../components/TeamManagement';
 import ScreenLiveDashboard from '../components/ScreenLiveDashboard';
+import LiveStudioDashboard from '../components/LiveStudioDashboard';
 import EventThemeSelector from '../components/EventThemeSelector';
 
 type Table = { id: number; name: string; capacity: number };
@@ -212,10 +214,11 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             ['overview', LayoutDashboard, 'Visão geral'],
             ['guests', Users, 'Convidados'],
             ['tables', UtensilsCrossed, 'Mesas & lugares'],
+            ['studio', MonitorPlay, 'Estúdio Live'],
+            ['templates', Palette, 'Templates & Estilo'],
             ['menu', GlassWater, 'Menus & bebidas'],
             ['orders', ClipboardList, 'Pedidos'],
             ['playlist', Music2, 'Playlist'],
-            ['screen', Monitor, 'Ecrã Live & AV'],
             ['committee', Users, 'Comissão'],
             ['team', Shield, 'Equipa & Acessos'],
             ['settings', Settings2, 'Configurações'],
@@ -253,16 +256,18 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
               menu: 'Menus & bebidas',
               orders: 'Pedidos',
               playlist: 'Playlist',
-              screen: 'Ecrã Live & Audiovisual',
+              studio: 'Estúdio Live 16:9',
+              screen: 'Estúdio Live 16:9',
+              templates: 'Templates & Identidade Visual',
               committee: 'Comissão Organizadora',
               team: 'Equipa & Acessos',
               settings: 'Configurações',
-            }[tab]}</span>
+            }[tab] || tab}</span>
           </div>
           <div className="topright">
             <button
               type="button"
-              onClick={() => go('screen')}
+              onClick={() => go('studio')}
               className="outline"
               style={{
                 padding: '5px 11px',
@@ -270,17 +275,17 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                borderColor: tab === 'screen' ? '#d97706' : '#e2e8f0',
-                background: tab === 'screen' ? '#fef3c7' : '#ffffff',
-                color: tab === 'screen' ? '#92400e' : '#1e293b',
+                borderColor: (tab === 'studio' || tab === 'screen') ? '#d97706' : '#e2e8f0',
+                background: (tab === 'studio' || tab === 'screen') ? '#fef3c7' : '#ffffff',
+                color: (tab === 'studio' || tab === 'screen') ? '#92400e' : '#1e293b',
                 fontWeight: 600,
                 cursor: 'pointer',
                 borderRadius: '8px',
               }}
               title="Abrir Controlo em Direto do Ecrã 16:9"
             >
-              <Monitor size={15} color="#d97706" />
-              <span>Ecrã Live</span>
+              <MonitorPlay size={15} color="#d97706" />
+              <span>Estúdio Live</span>
               <span className="green-dot" style={{ width: '7px', height: '7px' }} />
             </button>
             <button
@@ -310,7 +315,42 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
 
           {tab === 'team' && <TeamManagement slug={slug} />}
 
-          {tab === 'screen' && <ScreenLiveDashboard slug={slug} />}
+          {(tab === 'studio' || tab === 'screen') && <LiveStudioDashboard slug={slug} />}
+
+          {tab === 'templates' && (
+            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+              <div style={{
+                padding: '24px 28px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, rgba(217,119,6,0.15) 0%, rgba(15,23,42,0.95) 100%)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: '#ffffff',
+                marginBottom: '24px',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)'
+              }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.12em', color: '#f59e0b', textTransform: 'uppercase' }}>
+                  ✦ IDENTIDADE VISUAL & GALA ✦
+                </span>
+                <h1 style={{ fontSize: '1.75rem', fontFamily: 'serif', fontWeight: 700, color: '#ffffff', margin: '6px 0 8px 0' }}>
+                  Templates & Design de Gala
+                </h1>
+                <p style={{ fontSize: '0.875rem', color: '#cbd5e1', maxWidth: '640px', lineHeight: 1.6 }}>
+                  Escolhe o tema ideal para a tua celebração. O design selecionado aplica-se instantaneamente ao portal público dos convidados e aos ecrãs 16:9 com tipografia nobre e paletas cinematográficas.
+                </p>
+              </div>
+
+              <EventThemeSelector
+                currentTheme={data.event?.coverTheme || 'gala-gold'}
+                slug={slug}
+                onThemeChanged={(newTheme) => {
+                  setData((prev) => ({
+                    ...prev,
+                    event: prev.event ? { ...prev.event, coverTheme: newTheme } : prev.event,
+                  }));
+                }}
+              />
+            </div>
+          )}
 
           {tab === 'overview' && (
             <>
