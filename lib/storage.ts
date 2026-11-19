@@ -28,7 +28,6 @@ async function getS3(): Promise<{ client: any; bucket: string; s3: any } | null>
   try {
     if (!_s3Module) {
       // Dynamic import to avoid build errors if @aws-sdk/client-s3 is not in client bundle
-      // @ts-expect-error dynamic import
       _s3Module = await import("@aws-sdk/client-s3");
     }
     if (!_s3Client) {
@@ -109,7 +108,11 @@ export const storage = {
     options?: { httpMetadata?: { contentType?: string } }
   ): Promise<void> {
     const contentType = options?.httpMetadata?.contentType || "application/octet-stream";
-    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    const buffer = Buffer.isBuffer(data)
+      ? data
+      : data instanceof ArrayBuffer
+      ? Buffer.from(data)
+      : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
 
     // 1. S3 / R2 Mode
     if (isS3Configured()) {
