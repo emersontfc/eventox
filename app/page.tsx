@@ -9,42 +9,12 @@ import {
 import Countdown from '../components/Countdown';
 import AuthModal from '../components/AuthModal';
 
-interface EventItem {
-  id: number;
-  slug: string;
-  title: string;
-  hostName: string;
-  eventDate: string;
-  venue: string;
-  description: string;
-  coverTheme: string;
-  photoAlbumUrl?: string | null;
-}
-
 export default function HomePage() {
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchCode, setSearchCode] = useState('');
 
   // Auth Modal state
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('register');
-
-  const loadEvents = async () => {
-    try {
-      const res = await fetch('/api/events', { cache: 'no-store' });
-      const data = await res.json() as { events?: EventItem[] };
-      setEvents(data.events || []);
-    } catch {
-      setEvents([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadEvents();
-  }, []);
 
   const generateSlug = (text: string) => {
     return text
@@ -276,44 +246,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Event Directory / Recent Events */}
-      {events.length > 0 && (
-        <section className="home-events-directory">
-          <div className="directory-header">
-            <div>
-              <span className="overline">CELEBRAÇÕES NA PLATAFORMA</span>
-              <h2>Explorar eventos ativos</h2>
-            </div>
-            <button className="outline-pill" onClick={() => openAuth('register')}>
-              + Novo Evento
-            </button>
-          </div>
 
-          <div className="events-grid">
-            {events.map((ev) => (
-              <a href={`/${ev.slug}`} key={ev.id} className="event-item-card">
-                <div className="event-item-meta">
-                  <span className="event-slug-pill">/{ev.slug}</span>
-                  <span className="event-date-chip">
-                    <CalendarDays size={14} />
-                    {new Date((ev.eventDate || '2026-12-11T14:00') + ':00+02:00').toLocaleDateString('pt-PT', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </span>
-                </div>
-                <h3>{ev.title}</h3>
-                <p className="event-item-host">Anfitrião: <strong>{ev.hostName}</strong></p>
-                <div className="event-item-foot">
-                  <span><MapPin size={14} /> {ev.venue || 'Local a definir'}</span>
-                  <span className="arrow-chip">Ver Evento →</span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Footer */}
       <footer className="home-footer">

@@ -139,14 +139,6 @@ export default function EventClientView({
     timeZone: 'Africa/Maputo',
   });
 
-  // Host monogram / initials
-  const hostInitials = (event.hostName || 'Eventox')
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0].toUpperCase())
-    .join('');
-
   // Fetch initial event dynamic data (playlist, guestbook, stats)
   useEffect(() => {
     if (!event.slug) return;
@@ -396,7 +388,7 @@ export default function EventClientView({
   }
 
   return (
-    <div className="event-portal-page">
+    <div className={`event-portal-page ${theme.bodyClass || 'theme-gala-gold'}`}>
       <Confetti active={showConfetti} onFinish={() => setShowConfetti(false)} />
 
       {/* Top Luxury Navigation */}
@@ -432,16 +424,12 @@ export default function EventClientView({
       {/* Hero Section with refined aesthetics based on chosen template */}
       <section className="portal-hero" style={{ background: theme.heroGradient }}>
         <div className="portal-hero-container">
-          {/* Monogram Crest */}
-          <div
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 bg-gradient-to-br from-neutral-900 to-neutral-950 font-serif font-black text-2xl tracking-wider transition-all duration-300"
-            style={{
-              borderColor: theme.accentColor,
-              color: theme.accentColor,
-              boxShadow: `0 0 35px ${theme.accentColor}40`,
-            }}
-          >
-            {hostInitials}
+          {/* Luxury Crest Badge - Clean & Editorial without monogram acronyms */}
+          <div className="portal-hero-crest">
+            <div className="portal-crest-inner">
+              <Sparkles size={13} className="portal-sparkle-icon" />
+              <span>CONVITE EXCLUSIVO DE GALA</span>
+            </div>
           </div>
 
           <span
@@ -507,10 +495,9 @@ export default function EventClientView({
                 const el = document.getElementById('portal-content-anchor');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="outline-pill"
-              style={{ padding: '12px 20px', cursor: 'pointer', background: 'white' }}
+              className="portal-secondary-button"
             >
-              <Music2 size={16} className="text-amber-600" /> Playlist da Festa
+              <Music2 size={16} /> Playlist da Festa
             </button>
             <button
               onClick={() => {
@@ -518,10 +505,9 @@ export default function EventClientView({
                 const el = document.getElementById('portal-content-anchor');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="outline-pill"
-              style={{ padding: '12px 20px', cursor: 'pointer', background: 'white' }}
+              className="portal-secondary-button"
             >
-              <Camera size={16} className="text-rose-600" /> Fotos da Festa
+              <Camera size={16} /> Fotos da Festa
             </button>
           </div>
         </div>
@@ -554,7 +540,7 @@ export default function EventClientView({
           <Music2 size={15} className="text-amber-500" />
           <span>Músicas & Pedidos</span>
           {playlist.length > 0 && (
-            <span style={{ marginLeft: '4px', fontSize: '11px', background: 'rgba(212,175,55,0.2)', padding: '1px 6px', borderRadius: '10px', color: '#8f4660' }}>
+            <span style={{ marginLeft: '4px', fontSize: '11px', background: 'var(--portal-accent-subtle)', padding: '2px 7px', borderRadius: '10px', color: 'var(--portal-accent)', fontWeight: 700 }}>
               {playlist.length}
             </span>
           )}
@@ -883,7 +869,7 @@ export default function EventClientView({
                 <Music2 className="text-amber-500" size={18} />
                 <h3 style={{ margin: 0, fontSize: '16px' }}>Pedir uma Música para a Pista de Dança</h3>
               </div>
-              <p style={{ fontSize: '12.5px', color: '#7a6870', margin: '0 0 14px' }}>
+              <p style={{ fontSize: '12.5px', color: 'var(--portal-text-secondary)', margin: '0 0 14px' }}>
                 Conheces a música perfeita para este momento? Envia o título e artista. Se tiveres link do YouTube ou Spotify, cola abaixo para tocar na hora!
               </p>
 
@@ -946,10 +932,10 @@ export default function EventClientView({
             {/* In-App Music List */}
             <div className="playlist-showcase">
               <div className="flex items-center justify-between mb-4">
-                <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#3d2531', margin: 0 }}>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--portal-text-primary)', margin: 0 }}>
                   Lista de Músicas da Noite ({playlist.length})
                 </h4>
-                <span style={{ fontSize: '11px', color: '#88747c' }}>
+                <span style={{ fontSize: '11px', color: 'var(--portal-text-muted)' }}>
                   Clica em "Ouvir" para escutar no reprodutor abaixo
                 </span>
               </div>
@@ -969,19 +955,19 @@ export default function EventClientView({
                         key={s.id || index}
                         className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
                           isCurrent
-                            ? 'bg-amber-500/10 border-amber-500/50 shadow-md'
-                            : 'bg-white border-neutral-200/80 hover:border-amber-400/50'
+                            ? 'bg-amber-500/15 border-amber-500/60 shadow-lg shadow-amber-500/10'
+                            : 'bg-white/5 border-white/10 hover:border-white/25 hover:bg-white/10'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-xs font-bold text-neutral-600">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xs font-bold text-neutral-300">
                             #{String(index + 1).padStart(2, '0')}
                           </span>
                           <div className="min-w-0">
-                            <strong className="block text-sm text-neutral-900 truncate">
+                            <strong className="block text-sm font-semibold text-white truncate">
                               {s.title}
                             </strong>
-                            <small className="text-xs text-neutral-500 truncate block">
+                            <small className="text-xs text-neutral-400 truncate block">
                               {s.artist || 'Música da Celebração'}
                             </small>
                           </div>
@@ -993,8 +979,8 @@ export default function EventClientView({
                             onClick={() => setActivePlayingSong(s)}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                               isCurrent
-                                ? 'bg-amber-600 text-white shadow-sm'
-                                : 'bg-neutral-900 text-amber-300 hover:bg-neutral-800'
+                                ? 'bg-amber-500 text-black shadow-md'
+                                : 'bg-white/10 text-amber-300 hover:bg-white/20'
                             }`}
                             title="Ouvir na plataforma sem sair"
                           >
@@ -1007,7 +993,7 @@ export default function EventClientView({
                               href={s.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-1.5 text-neutral-400 hover:text-neutral-700 transition"
+                              className="p-1.5 text-neutral-400 hover:text-white transition"
                               title="Abrir no site original (opcional)"
                             >
                               <ExternalLink size={15} />
@@ -1230,7 +1216,7 @@ export default function EventClientView({
 
             {/* Approved Messages Feed */}
             <div className="mural-feed">
-              <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#3d2531', marginBottom: '16px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--portal-text-primary)', marginBottom: '16px' }}>
                 Mensagens de Amigos & Família ({muralMessages.length})
               </h4>
 
@@ -1245,15 +1231,15 @@ export default function EventClientView({
                   {muralMessages.map((m) => (
                     <div
                       key={m.id}
-                      className="p-4 rounded-xl border border-rose-100 bg-gradient-to-br from-white to-rose-50/30 shadow-sm"
+                      className="p-5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md shadow-sm transition hover:border-white/20"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <strong className="text-sm font-bold text-neutral-900">{m.senderName}</strong>
-                        <span className="text-[11px] font-semibold text-rose-600 bg-rose-100/60 px-2 py-0.5 rounded-full">
+                        <strong className="text-sm font-bold text-white">{m.senderName}</strong>
+                        <span className="text-[11px] font-semibold text-rose-300 bg-rose-500/20 border border-rose-500/30 px-2.5 py-0.5 rounded-full">
                           {m.relationship || 'Convidado'}
                         </span>
                       </div>
-                      <p className="text-sm text-neutral-700 leading-relaxed font-serif italic">
+                      <p className="text-sm text-neutral-300 leading-relaxed font-serif italic">
                         "{m.message}"
                       </p>
                     </div>
@@ -1290,7 +1276,7 @@ export default function EventClientView({
                 O traje para a celebração é <strong>Fato de Gala / Passeio Completo</strong> (Smoking, fato escuro com gravata ou vestido de festa longo).
               </p>
               <div>
-                <strong style={{ fontSize: '11px', color: '#6d4554', letterSpacing: '1px' }}>PALETA DE CORES SUGERIDA:</strong>
+                <strong style={{ fontSize: '11px', color: 'var(--portal-accent)', letterSpacing: '1.5px' }}>PALETA DE CORES SUGERIDA:</strong>
                 <div className="palette-circles">
                   <div className="palette-dot" style={{ background: '#5d1a2f' }} title="Borgonha / Vinho" />
                   <div className="palette-dot" style={{ background: '#d4af37' }} title="Dourado Champagne" />
@@ -1320,7 +1306,6 @@ export default function EventClientView({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="maps-btn"
-                  style={{ background: '#3b242e' }}
                 >
                   <Navigation size={14} /> Abrir no Waze ↗
                 </a>
