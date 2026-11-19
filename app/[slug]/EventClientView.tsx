@@ -300,6 +300,20 @@ export default function EventClientView({
           <Navigation size={15} />
           <span>Local & Traje</span>
         </button>
+        <button
+          className="portal-tab-pill"
+          onClick={() => window.open(`/${event.slug}/mural`, '_blank')}
+        >
+          <Heart size={15} className="text-rose-400" />
+          <span>Mural de Felicitações ↗</span>
+        </button>
+        <button
+          className="portal-tab-pill"
+          onClick={() => window.open(`/${event.slug}/screen`, '_blank')}
+        >
+          <Sparkles size={15} className="text-amber-400" />
+          <span>Modo Ecrã 16:9 ↗</span>
+        </button>
       </nav>
 
       {/* TAB 1: SEATING FINDER & RSVP & VIP PASS */}

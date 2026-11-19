@@ -4,7 +4,8 @@ import {
   CalendarDays, Camera, Check, Clock3, Download, Edit3, GlassWater, Heart,
   LayoutDashboard, MapPin, Menu, Music2, Plus, Search, Settings2, Sparkles,
   Trash2, Users, UtensilsCrossed, ClipboardList, X, LogOut, ExternalLink,
-  Copy, CheckCheck, Link2, Share2, QrCode, type LucideIcon
+  Copy, CheckCheck, Link2, Share2, QrCode, Monitor, Shield, UserCheck, Radio,
+  type LucideIcon
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import Hospitality from './Hospitality';
@@ -12,6 +13,7 @@ import GuestImport from './GuestImport';
 import Committee from './Committee';
 import Gallery from './Gallery';
 import Countdown from '../components/Countdown';
+import TeamManagement from '../components/TeamManagement';
 
 type Table = { id: number; name: string; capacity: number };
 type Guest = { id: number; name: string; phone: string; tableId: number; seat: number; status: string; notes: string };
@@ -128,6 +130,19 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
     }
   };
 
+  const handleCheckIn = async (guest: Guest) => {
+    const success = await save({ action: 'guest-save', ...guest, status: 'presente' });
+    if (success) {
+      try {
+        await fetch(`/api/screen/${slug}/messages`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action: 'trigger-welcome', guestId: guest.id }),
+        });
+      } catch {}
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', {
@@ -197,7 +212,9 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             ['menu', GlassWater, 'Menus & bebidas'],
             ['orders', ClipboardList, 'Pedidos'],
             ['playlist', Music2, 'Playlist'],
-            ['committee', Users, 'Comissão Organizadora'],
+            ['screen', Monitor, 'Ecrã Live & AV'],
+            ['committee', Users, 'Comissão'],
+            ['team', Shield, 'Equipa & Acessos'],
             ['settings', Settings2, 'Configurações'],
           ].map(([id, Icon, label]) => (
             <button key={id as string} className={tab === id ? 'on' : ''} onClick={() => go(id as string)}>
@@ -233,7 +250,9 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
               menu: 'Menus & bebidas',
               orders: 'Pedidos',
               playlist: 'Playlist',
+              screen: 'Ecrã Live & Audiovisual',
               committee: 'Comissão Organizadora',
+              team: 'Equipa & Acessos',
               settings: 'Configurações',
             }[tab]}</span>
           </div>
@@ -255,6 +274,79 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
           )}
 
           {tab === 'committee' && <Committee slug={slug} />}
+
+          {tab === 'team' && <TeamManagement slug={slug} />}
+
+          {tab === 'screen' && (
+            <div className="space-y-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="page-head">
+                <div>
+                  <span className="overline">EVENTOX LIVE • EXPERIÊNCIA DE PALCO</span>
+                  <h1>Ecrã 16:9 & Audiovisual</h1>
+                  <p>Central de comando para projecção em salas de eventos, TVs, projectores e LED.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d97706', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>
+                      <Monitor size={16} /> Projecção Principal
+                    </div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>Ecrã 16:9 Cinema</h3>
+                    <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5, marginBottom: '20px' }}>
+                      Página optimizada para TVs e projectores. Apresenta contagem regressiva, boas-vindas dos convidados à chegada e frases comemorativas.
+                    </p>
+                  </div>
+                  <button
+                    className="primary"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    onClick={() => window.open(`/${slug}/screen`, '_blank')}
+                  >
+                    <Monitor size={17} /> Abrir Ecrã 16:9 ↗
+                  </button>
+                </div>
+
+                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0284c7', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>
+                      <Radio size={16} /> Operação Audiovisual
+                    </div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>Mesa de Controlo AV</h3>
+                    <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5, marginBottom: '20px' }}>
+                      Troca imediata de cenas, pausa na rotação automática, modo de emergência e moderação da fila de boas-vindas da recepção.
+                    </p>
+                  </div>
+                  <button
+                    className="primary"
+                    style={{ width: '100%', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    onClick={() => window.open(`/${slug}/screen/control`, '_blank')}
+                  >
+                    <Radio size={17} /> Abrir Mesa AV ↗
+                  </button>
+                </div>
+
+                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#e11d48', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>
+                      <Heart size={16} /> Interação dos Convidados
+                    </div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>Mural de Mensagens</h3>
+                    <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5, marginBottom: '20px' }}>
+                      Portal onde os convidados deixam mensagens de felicitações e carinho que podem ser moderadas e projectadas no ecrã.
+                    </p>
+                  </div>
+                  <button
+                    className="outline"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    onClick={() => window.open(`/${slug}/mural`, '_blank')}
+                  >
+                    <Heart size={17} /> Ver Mural Público ↗
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {tab === 'overview' && (
             <>
@@ -389,6 +481,32 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                           <td><span className={'status ' + g.status}>{statuses[g.status]}</span></td>
                           <td>
                             <div className="row-buttons">
+                              {g.status !== 'presente' ? (
+                                <button
+                                  type="button"
+                                  title="Fazer Check-in (Entrada) e Enviar Boas-Vindas ao Ecrã"
+                                  onClick={() => handleCheckIn(g)}
+                                  style={{
+                                    background: '#059669',
+                                    color: '#ffffff',
+                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <UserCheck size={14} /> Entrada
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, padding: '2px 6px' }}>
+                                  ✓ No Salão
+                                </span>
+                              )}
                               <button title="Editar" onClick={() => setEdit({ ...g })}><Edit3 size={17} /></button>
                               <button title="Eliminar" onClick={async () => { if (confirm('Eliminar este convidado?')) await save({ action: 'guest-delete', id: g.id }); }}><Trash2 size={17} /></button>
                             </div>

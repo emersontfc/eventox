@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       db.select().from(settings),
     ]);
 
-    const settingsObj = Object.fromEntries(prefs.map(x => [x.key, x.value]));
+    const settingsObj = Object.fromEntries(prefs.map((x: any) => [x.key, x.value]));
     if (event) {
       settingsObj.eventName = event.title;
       settingsObj.eventDate = event.eventDate;

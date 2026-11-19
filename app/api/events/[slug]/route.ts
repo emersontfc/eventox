@@ -28,9 +28,9 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       status: guests.status,
     }).from(guests).where(eq(guests.eventId, event.id));
 
-    const totalSeats = tables.reduce((acc, t) => acc + t.capacity, 0);
-    const confirmedCount = allGuests.filter(g => ['confirmado', 'presente'].includes(g.status)).length;
-    const pendingCount = allGuests.filter(g => g.status === 'pendente').length;
+    const totalSeats = tables.reduce((acc: number, t: any) => acc + t.capacity, 0);
+    const confirmedCount = allGuests.filter((g: any) => ['confirmado', 'presente'].includes(g.status)).length;
+    const pendingCount = allGuests.filter((g: any) => g.status === 'pendente').length;
 
     // Get menu highlights for guests showcase
     const menu = await db.select().from(menuItems).where(
@@ -65,10 +65,10 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
         confirmedGuests: confirmedCount,
         pendingGuests: pendingCount,
       },
-      tables: tables.map(t => ({ id: t.id, name: t.name, capacity: t.capacity })),
-      menu: menu.map(m => ({ id: m.id, name: m.name, category: m.category, description: m.description })),
-      playlist: songs.map(s => ({ id: s.id, title: s.title, artist: s.artist, url: s.url })),
-      gallery: media.map(m => ({ id: m.id, key: m.key, mime: m.mime, uploader: m.uploader, createdAt: m.createdAt })),
+      tables: tables.map((t: any) => ({ id: t.id, name: t.name, capacity: t.capacity })),
+      menu: menu.map((m: any) => ({ id: m.id, name: m.name, category: m.category, description: m.description })),
+      playlist: songs.map((s: any) => ({ id: s.id, title: s.title, artist: s.artist, url: s.url })),
+      gallery: media.map((m: any) => ({ id: m.id, key: m.key, mime: m.mime, uploader: m.uploader, createdAt: m.createdAt })),
       admin,
     });
   } catch (e) {
@@ -114,12 +114,12 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
         notes: guests.notes,
       }).from(guests).where(eq(guests.eventId, event.id));
 
-      const filtered = matches.filter(g => g.name.toLowerCase().includes(q));
+      const filtered = matches.filter((g: any) => g.name.toLowerCase().includes(q));
       const tables = await db.select().from(guestTables).where(eq(guestTables.eventId, event.id));
-      const tableMap = Object.fromEntries(tables.map(t => [t.id, t.name]));
+      const tableMap = Object.fromEntries(tables.map((t: any) => [t.id, t.name]));
 
       return NextResponse.json({
-        results: filtered.map(g => ({
+        results: filtered.map((g: any) => ({
           ...g,
           tableName: tableMap[g.tableId] || `Mesa ${g.tableId}`,
         })),
@@ -156,7 +156,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
       if (existing.length > 0) {
         const tables = await db.select().from(guestTables).where(eq(guestTables.eventId, event.id));
-        const tableMap = Object.fromEntries(tables.map(t => [t.id, t.name]));
+        const tableMap = Object.fromEntries(tables.map((t: any) => [t.id, t.name]));
         const g = existing[0];
         return NextResponse.json({
           ok: true,
@@ -190,7 +190,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
       for (const table of tables) {
         const takenSeats = new Set(
-          allEventGuests.filter(g => g.tableId === table.id).map(g => g.seat)
+          allEventGuests.filter((g: any) => g.tableId === table.id).map((g: any) => g.seat)
         );
         for (let s = 1; s <= table.capacity; s++) {
           if (!takenSeats.has(s)) {
@@ -206,11 +206,11 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       if (!foundSlot) {
         // Fallback to table 1 next sequential seat
         assignedTableId = tables[0].id;
-        const highestSeat = Math.max(0, ...allEventGuests.filter(g => g.tableId === assignedTableId).map(g => g.seat));
+        const highestSeat = Math.max(0, ...allEventGuests.filter((g: any) => g.tableId === assignedTableId).map((g: any) => g.seat));
         assignedSeat = highestSeat + 1;
       }
 
-      const tableMap = Object.fromEntries(tables.map(t => [t.id, t.name]));
+      const tableMap = Object.fromEntries(tables.map((t: any) => [t.id, t.name]));
       const timestamp = new Date().toISOString();
 
       const [newGuest] = await db.insert(guests).values({

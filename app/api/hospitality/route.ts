@@ -103,7 +103,7 @@ export async function POST(req: Request) {
       const id = idOf(body.id), direction = idOf(body.direction);
       if (!validId(id) || ![1, -1].includes(direction)) return fail('Movimento inválido');
       const all = await db.select().from(playlist).where(eq(playlist.eventId, eventId)).orderBy(playlist.position, playlist.id);
-      const index = all.findIndex(s => s.id === id);
+      const index = all.findIndex((s: any) => s.id === id);
       if (index === -1) return fail('Música não encontrada');
       const swap = all[index + direction];
       if (!swap) return NextResponse.json({ ok: true });

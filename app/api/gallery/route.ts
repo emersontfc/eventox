@@ -15,7 +15,7 @@ const keyOf=(url:string)=>new URL(url).searchParams.get('key')||'';
 export async function GET(request:Request){
   try{const admin=await isAdmin();const valid=admin||await authorized(keyOf(request.url));if(!valid)return failure('Link inválido ou galeria ainda não ativada.',403);
     const db=getDb();const records=await db.select({id:galleryMedia.id,mime:galleryMedia.mime,originalName:galleryMedia.originalName,uploader:galleryMedia.uploader,album:galleryMedia.album,status:galleryMedia.status,createdAt:galleryMedia.createdAt,size:galleryMedia.size,driveStatus:galleryMedia.driveStatus,driveFileId:galleryMedia.driveFileId,driveError:galleryMedia.driveError}).from(galleryMedia);
-    return NextResponse.json({media:admin?records:records.filter(x=>x.status==='aprovado'),admin,inviteKey:admin?await token():null},{headers:{'Cache-Control':'no-store'}})
+    return NextResponse.json({media:admin?records:records.filter((x: any)=>x.status==='aprovado'),admin,inviteKey:admin?await token():null},{headers:{'Cache-Control':'no-store'}})
   }catch{return failure('Não foi possível carregar a galeria.',500)}
 }
 
