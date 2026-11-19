@@ -186,13 +186,24 @@ export const screenSettings = sqliteTable('screen_settings', {
   emergencyMode: integer('emergency_mode', { mode: 'boolean' }).notNull().default(false),
   emergencyMessage: text('emergency_message'),
   fontFamily: text('font_family').notNull().default('playfair'),
+  stageStatus: text('stage_status').notNull().default('no_ar'), // 'rascunho' | 'pronto' | 'no_ar' | 'pausado' | 'concluido'
+  stagedSceneId: text('staged_scene_id'),
+  version: integer('version').notNull().default(1),
+  sceneStartedAt: text('scene_started_at'),
+  sceneDurationSeconds: integer('scene_duration_seconds').notNull().default(12),
+  isPaused: integer('is_paused', { mode: 'boolean' }).notNull().default(false),
+  activeGameId: integer('active_game_id'),
+  activeGameSessionId: integer('active_game_session_id'),
+  broadcastTicker: text('broadcast_ticker'),
+  broadcastTickerSender: text('broadcast_ticker_sender'),
+  broadcastTickerAt: text('broadcast_ticker_at'),
   updatedAt: text('updated_at').notNull(),
 });
 
 export const screenScenes = sqliteTable('screen_scenes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
-  sceneType: text('scene_type').notNull(), // 'welcome' | 'countdown' | 'arrivals' | 'fun_quote' | 'gallery_mural' | 'qr_code' | 'schedule' | 'tribute' | 'gratitude' | 'emergency'
+  sceneType: text('scene_type').notNull(), // 'welcome' | 'countdown' | 'arrivals' | 'fun_quote' | 'gallery_mural' | 'qr_code' | 'schedule' | 'tribute' | 'gratitude' | 'emergency' | 'quiz' | 'poll' | 'wordcloud' | 'qa'
   title: text('title').notNull(),
   subtitle: text('subtitle'),
   content: text('content'), // JSON payload for scene specific configurations
@@ -236,5 +247,81 @@ export const quotesLibrary = sqliteTable('quotes_library', {
   quote: text('quote').notNull(),
   author: text('author'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull(),
+});
+
+export const liveGames = sqliteTable('live_games', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  gameType: text('game_type').notNull().default('quiz'), // 'quiz' | 'trivia' | 'table_battle' | 'couples'
+  settings: text('settings'), // JSON string: { timePerQuestion: 20, randomOrder: false, showLeaderboard: true }
+  status: text('status').notNull().default('ativo'), // 'ativo' | 'arquivado'
+  createdAt: text('created_at').notNull(),
+});
+
+export const gameQuestions = sqliteTable('game_questions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  gameId: integer('game_id').notNull().references(() => liveGames.id, { onDelete: 'cascade' }),
+  orderIndex: integer('order_index').notNull().default(0),
+  questionType: text('question_type').notNull().default('multiple_choice'), // 'multiple_choice' | 'true_false' | 'short_answer' | 'picture'
+  title: text('title').notNull(),
+  mediaUrl: text('media_url'),
+  options: text('options').notNull(), // JSON array: ["Opção A", "Opção B", "Opção C", "Opção D"]
+  correctAnswer: text('correct_answer').notNull(), // "0", "1", or text
+  timeLimit: integer('time_limit').notNull().default(20), // seconds
+  points: integer('points').notNull().default(1000),
+  explanation: text('explanation'),
+  createdAt: text('created_at').notNull(),
+});
+
+export const gameSessions = sqliteTable('game_sessions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  gameId: integer('game_id').notNull().references(() => liveGames.id, { onDelete: 'cascade' }),
+  eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  pin: text('pin').notNull(), // 6-digit random code
+  status: text('status').notNull().default('lobby'), // 'lobby' | 'question_active' | 'question_ended' | 'podium' | 'concluded'
+  currentQuestionIndex: integer('current_question_index').notNull().default(0),
+  questionStartedAt: text('question_started_at'),
+  version: integer('version').notNull().default(1),
+  createdAt: text('created_at').notNull(),
+});
+
+export const gameParticipants = sqliteTable('game_participants', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull().references(() => gameSessions.id, { onDelete: 'cascade' }),
+  nickname: text('nickname').notNull(),
+  tableNumber: text('table_number'),
+  avatar: text('avatar'),
+  score: integer('score').notNull().default(0),
+  streak: integer('streak').notNull().default(0),
+  isConnected: integer('is_connected', { mode: 'boolean' }).notNull().default(true),
+  lastActiveAt: text('last_active_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const gameAnswers = sqliteTable('game_answers', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull().references(() => gameSessions.id, { onDelete: 'cascade' }),
+  participantId: integer('participant_id').notNull().references(() => gameParticipants.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id').notNull().references(() => gameQuestions.id, { onDelete: 'cascade' }),
+  answer: text('answer').notNull(),
+  isCorrect: integer('is_correct', { mode: 'boolean' }).notNull().default(false),
+  points: integer('points').notNull().default(0),
+  responseMs: integer('response_ms').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+});
+
+export const liveInteractions = sqliteTable('live_interactions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'wordcloud' | 'poll' | 'qa' | 'song_vote' | 'tribute'
+  senderName: text('sender_name').notNull(),
+  tableNumber: text('table_number'),
+  content: text('content').notNull(),
+  votes: integer('votes').notNull().default(0),
+  status: text('status').notNull().default('aprovado'), // 'pendente' | 'aprovado' | 'rejeitado' | 'exibido'
+  displayedAt: text('displayed_at'),
   createdAt: text('created_at').notNull(),
 });

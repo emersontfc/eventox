@@ -1,5 +1,5 @@
 import { getDb } from '@/db';
-import { events, screenSettings, screenMessages } from '@/db/schema';
+import { events, screenSettings, screenMessages, gameSessions } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -16,13 +16,16 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
   const encoder = new TextEncoder();
 
   let intervalId: NodeJS.Timeout;
-  let lastUpdatedAt = '';
+  let lastVersion = -1;
   let lastMessageId = 0;
+  let lastSessionVersion = -1;
 
   const stream = new ReadableStream({
     start(controller) {
       // Send initial connection event
-      controller.enqueue(encoder.encode(`event: connected\ndata: ${JSON.stringify({ status: 'connected', time: Date.now() })}\n\n`));
+      controller.enqueue(
+        encoder.encode(`event: connected\ndata: ${JSON.stringify({ status: 'connected', time: Date.now() })}\n\n`)
+      );
 
       const pollForUpdates = async () => {
         try {
@@ -39,22 +42,38 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
             .orderBy(desc(screenMessages.id))
             .limit(1);
 
-          const isSettingsUpdated = settings && settings.updatedAt !== lastUpdatedAt;
-          const isMessageUpdated = latestMsg && latestMsg.id !== lastMessageId;
+          let gameSessionVersion = 0;
+          if (settings?.activeGameSessionId) {
+            const [session] = await db
+              .select({ version: gameSessions.version })
+              .from(gameSessions)
+              .where(eq(gameSessions.id, settings.activeGameSessionId))
+              .limit(1);
+            if (session) gameSessionVersion = session.version;
+          }
 
-          if (isSettingsUpdated || isMessageUpdated) {
-            if (settings) lastUpdatedAt = settings.updatedAt;
-            if (latestMsg) lastMessageId = latestMsg.id;
+          const currentVersion = settings?.version || 0;
+          const currentMsgId = latestMsg?.id || 0;
+
+          const isSettingsChanged = currentVersion !== lastVersion;
+          const isMsgChanged = currentMsgId !== lastMessageId;
+          const isGameChanged = gameSessionVersion !== lastSessionVersion;
+
+          if (isSettingsChanged || isMsgChanged || isGameChanged) {
+            lastVersion = currentVersion;
+            lastMessageId = currentMsgId;
+            lastSessionVersion = gameSessionVersion;
 
             const payload = JSON.stringify({
               settings,
               activeMessage: latestMsg || null,
               timestamp: Date.now(),
+              version: currentVersion,
             });
 
             controller.enqueue(encoder.encode(`event: update\ndata: ${payload}\n\n`));
           } else {
-            // Heartbeat
+            // Heartbeat comment
             controller.enqueue(encoder.encode(`: heartbeat ${Date.now()}\n\n`));
           }
         } catch {
@@ -62,8 +81,8 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
         }
       };
 
-      // Poll every 2 seconds
-      intervalId = setInterval(pollForUpdates, 2000);
+      // Poll every 1.5 seconds for instant response
+      intervalId = setInterval(pollForUpdates, 1500);
       pollForUpdates();
     },
     cancel() {

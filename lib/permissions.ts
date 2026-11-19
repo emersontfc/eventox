@@ -36,10 +36,13 @@ export const ROLE_DEFINITIONS: Record<EventRole, RoleDefinition> = {
       'tables:*',
       'hospitality:*',
       'screen:*',
+      'games:*',
       'playlist:*',
       'committee:*',
       'gallery:*',
+      'media:*',
       'quotes:*',
+      'messages:*',
       'audit:view',
     ],
   },
@@ -74,18 +77,26 @@ export const ROLE_DEFINITIONS: Record<EventRole, RoleDefinition> = {
   audiovisual: {
     id: 'audiovisual',
     label: 'Audiovisual (Ecrã & Som)',
-    description: 'Operação da tela ao vivo, rotação de cenas, aprovação de mensagens e playlist.',
+    description: 'Operação da tela ao vivo, rotação de cenas, aprovação de mensagens, quiz live e playlist.',
     badgeColor: '#30588c',
     defaultPermissions: [
+      'screen:*',
       'screen:view',
       'screen:control',
+      'screen:design',
+      'screen:messages:*',
       'screen:messages:view',
       'screen:messages:moderate',
       'screen:scenes:manage',
+      'games:*',
+      'games:manage',
+      'games:host',
+      'messages:moderate',
       'playlist:view',
       'playlist:control',
       'quotes:manage',
       'gallery:view',
+      'media:manage',
     ],
   },
   fotografia: {
@@ -98,6 +109,7 @@ export const ROLE_DEFINITIONS: Record<EventRole, RoleDefinition> = {
       'gallery:upload',
       'gallery:moderate',
       'screen:gallery',
+      'media:manage',
     ],
   },
   comissao: {
@@ -120,7 +132,8 @@ export const MODULE_ACTIONS = [
   { module: 'guests', label: 'Convidados & RSVP', actions: ['view', 'create', 'edit', 'delete', 'checkin'] },
   { module: 'tables', label: 'Mesas & Lugares', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'hospitality', label: 'Bar & Catering', actions: ['view', 'order', 'stock'] },
-  { module: 'screen', label: 'Modo Ecrã / Eventox Live', actions: ['view', 'control', 'messages', 'scenes'] },
+  { module: 'screen', label: 'Modo Ecrã / Eventox Live', actions: ['view', 'control', 'design', 'messages', 'scenes'] },
+  { module: 'games', label: 'Jogos & Quiz Live', actions: ['manage', 'host'] },
   { module: 'playlist', label: 'Playlist & Som', actions: ['view', 'control'] },
   { module: 'gallery', label: 'Galeria & Fotos', actions: ['view', 'upload', 'moderate'] },
   { module: 'committee', label: 'Comissão & Tarefas', actions: ['view', 'edit', 'tasks'] },
@@ -146,22 +159,24 @@ export function hasPermission(
     }
   }
 
-  // Check wildcard in custom permissions
-  if (perms.includes('*') || perms.includes(requiredPermission)) return true;
-
-  // Check module wildcard in custom permissions (e.g. "guests:*" matches "guests:view")
-  const [reqModule] = requiredPermission.split(':');
-  if (perms.includes(`${reqModule}:*`)) return true;
-
-  // Check default role permissions
+  // Combine custom perms and default role perms
   const roleDef = ROLE_DEFINITIONS[role as EventRole];
-  if (roleDef) {
-    if (roleDef.defaultPermissions.includes('*') || roleDef.defaultPermissions.includes(requiredPermission)) {
-      return true;
+  const allPerms = new Set<string>([...perms, ...(roleDef?.defaultPermissions || [])]);
+
+  // Global wildcard
+  if (allPerms.has('*') || allPerms.has(requiredPermission)) return true;
+
+  // Prefix checks:
+  // e.g. required "screen:messages:view" matches "screen:*" or "screen:messages:*"
+  // e.g. required "screen:messages" matches "screen:*" or "screen:messages:view" or "screen:messages:moderate"
+  for (const perm of allPerms) {
+    if (perm === '*') return true;
+    if (perm.endsWith(':*')) {
+      const prefix = perm.slice(0, -2);
+      if (requiredPermission.startsWith(prefix)) return true;
     }
-    if (roleDef.defaultPermissions.includes(`${reqModule}:*`)) {
-      return true;
-    }
+    // If requirement is a broader module/submodule like 'screen:messages' and user has 'screen:messages:moderate'
+    if (perm.startsWith(`${requiredPermission}:`)) return true;
   }
 
   return false;
