@@ -14,6 +14,7 @@ import Committee from './Committee';
 import Gallery from './Gallery';
 import Countdown from '../components/Countdown';
 import TeamManagement from '../components/TeamManagement';
+import ScreenLiveDashboard from '../components/ScreenLiveDashboard';
 
 type Table = { id: number; name: string; capacity: number };
 type Guest = { id: number; name: string; phone: string; tableId: number; seat: number; status: string; notes: string };
@@ -257,9 +258,39 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             }[tab]}</span>
           </div>
           <div className="topright">
-            <span className="green-dot" />
-            <span>Painel Ativo</span>
-            <button className="outline" style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={handleLogout} title="Sair do modo administrador">
+            <button
+              type="button"
+              onClick={() => go('screen')}
+              className="outline"
+              style={{
+                padding: '5px 11px',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: tab === 'screen' ? '#d97706' : '#e2e8f0',
+                background: tab === 'screen' ? '#fef3c7' : '#ffffff',
+                color: tab === 'screen' ? '#92400e' : '#1e293b',
+                fontWeight: 600,
+                cursor: 'pointer',
+                borderRadius: '8px',
+              }}
+              title="Abrir Controlo em Direto do Ecrã 16:9"
+            >
+              <Monitor size={15} color="#d97706" />
+              <span>Ecrã Live</span>
+              <span className="green-dot" style={{ width: '7px', height: '7px' }} />
+            </button>
+            <button
+              type="button"
+              onClick={() => window.open(`/${slug}/screen`, '_blank')}
+              className="outline"
+              style={{ padding: '5px 9px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: '8px' }}
+              title="Abrir Ecrã 16:9 no Projector em nova janela"
+            >
+              <ExternalLink size={14} />
+            </button>
+            <button className="outline" style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px' }} onClick={handleLogout} title="Sair do modo administrador">
               <LogOut size={15} /> Sair
             </button>
           </div>
@@ -277,76 +308,7 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
 
           {tab === 'team' && <TeamManagement slug={slug} />}
 
-          {tab === 'screen' && (
-            <div className="space-y-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div className="page-head">
-                <div>
-                  <span className="overline">EVENTOX LIVE • EXPERIÊNCIA DE PALCO</span>
-                  <h1>Ecrã 16:9 & Audiovisual</h1>
-                  <p>Central de comando para projecção em salas de eventos, TVs, projectores e LED.</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d97706', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>
-                      <Monitor size={16} /> Projecção Principal
-                    </div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>Ecrã 16:9 Cinema</h3>
-                    <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5, marginBottom: '20px' }}>
-                      Página optimizada para TVs e projectores. Apresenta contagem regressiva, boas-vindas dos convidados à chegada e frases comemorativas.
-                    </p>
-                  </div>
-                  <button
-                    className="primary"
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                    onClick={() => window.open(`/${slug}/screen`, '_blank')}
-                  >
-                    <Monitor size={17} /> Abrir Ecrã 16:9 ↗
-                  </button>
-                </div>
-
-                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0284c7', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>
-                      <Radio size={16} /> Operação Audiovisual
-                    </div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>Mesa de Controlo AV</h3>
-                    <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5, marginBottom: '20px' }}>
-                      Troca imediata de cenas, pausa na rotação automática, modo de emergência e moderação da fila de boas-vindas da recepção.
-                    </p>
-                  </div>
-                  <button
-                    className="primary"
-                    style={{ width: '100%', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                    onClick={() => window.open(`/${slug}/screen/control`, '_blank')}
-                  >
-                    <Radio size={17} /> Abrir Mesa AV ↗
-                  </button>
-                </div>
-
-                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#e11d48', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>
-                      <Heart size={16} /> Interação dos Convidados
-                    </div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>Mural de Mensagens</h3>
-                    <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5, marginBottom: '20px' }}>
-                      Portal onde os convidados deixam mensagens de felicitações e carinho que podem ser moderadas e projectadas no ecrã.
-                    </p>
-                  </div>
-                  <button
-                    className="outline"
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                    onClick={() => window.open(`/${slug}/mural`, '_blank')}
-                  >
-                    <Heart size={17} /> Ver Mural Público ↗
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {tab === 'screen' && <ScreenLiveDashboard slug={slug} />}
 
           {tab === 'overview' && (
             <>

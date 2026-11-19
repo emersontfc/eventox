@@ -229,7 +229,6 @@ export async function getEventMembershipContext(
   currentUser?: CurrentUser | null
 ): Promise<EventMembershipContext | null> {
   const user = currentUser !== undefined ? currentUser : await getCurrentUser();
-  if (!user) return null;
 
   try {
     const db = getDb();
@@ -243,51 +242,84 @@ export async function getEventMembershipContext(
 
     if (!eventRow) return null;
 
-    // Global admin has full owner access to any event
-    if (user.globalRole === 'admin') {
-      return {
-        user,
-        event: eventRow,
-        role: 'proprietario',
-        permissions: ['*'],
-        status: 'ativo',
-      };
+    // 1. Authenticated user account with RBAC
+    if (user) {
+      // Global admin has full owner access to any event
+      if (user.globalRole === 'admin') {
+        return {
+          user,
+          event: eventRow,
+          role: 'proprietario',
+          permissions: ['*'],
+          status: 'ativo',
+        };
+      }
+
+      // Direct event owner
+      if (eventRow.ownerId === user.id) {
+        return {
+          user,
+          event: eventRow,
+          role: 'proprietario',
+          permissions: ['*'],
+          status: 'ativo',
+        };
+      }
+
+      // Check membership table
+      const [membership] = await db
+        .select()
+        .from(eventMemberships)
+        .where(and(eq(eventMemberships.userId, user.id), eq(eventMemberships.eventId, eventRow.id)))
+        .limit(1);
+
+      if (membership && membership.status === 'ativo') {
+        let perms: string[] = [];
+        try {
+          perms = JSON.parse(membership.permissions || '[]');
+        } catch {
+          perms = [];
+        }
+
+        return {
+          user,
+          event: eventRow,
+          role: membership.role,
+          permissions: perms,
+          status: membership.status,
+        };
+      }
     }
 
-    // Direct event owner
-    if (eventRow.ownerId === user.id) {
-      return {
-        user,
-        event: eventRow,
-        role: 'proprietario',
-        permissions: ['*'],
-        status: 'ativo',
-      };
-    }
-
-    // Check membership table
-    const [membership] = await db
-      .select()
-      .from(eventMemberships)
-      .where(and(eq(eventMemberships.userId, user.id), eq(eventMemberships.eventId, eventRow.id)))
-      .limit(1);
-
-    if (!membership || membership.status !== 'ativo') return null;
-
-    let perms: string[] = [];
+    // 2. Authenticated event admin via verified passcode session cookie
     try {
-      perms = JSON.parse(membership.permissions || '[]');
+      const cookieStore = await cookies();
+      const token = cookieStore.get(`eventox_session_${eventRow.slug}`)?.value;
+      if (token) {
+        const session = parseAndVerifySessionToken(token, eventRow.slug);
+        if (session && session.slug.toLowerCase() === eventRow.slug.toLowerCase()) {
+          return {
+            user: {
+              id: eventRow.ownerId || 1,
+              email: 'admin@eventox.local',
+              name: eventRow.hostName || 'Administrador do Evento',
+              avatarUrl: null,
+              phone: null,
+              globalRole: 'admin',
+              isActive: true,
+            },
+            event: eventRow,
+            role: 'proprietario',
+            permissions: ['*'],
+            status: 'ativo',
+          };
+        }
+      }
     } catch {
-      perms = [];
+      // ignore cookie error
     }
 
-    return {
-      user,
-      event: eventRow,
-      role: membership.role,
-      permissions: perms,
-      status: membership.status,
-    };
+    return null;
   } catch {
     return null;
   }
