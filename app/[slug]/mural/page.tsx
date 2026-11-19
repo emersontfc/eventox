@@ -121,13 +121,6 @@ export default function GuestbookMuralPage({ params }: { params: Promise<{ slug:
           >
             <ArrowLeft size={14} /> Voltar ao Portal do Evento
           </button>
-
-          <button
-            onClick={() => window.open(`/${slug}/screen`, '_blank')}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-white/80 hover:bg-white/10 transition"
-          >
-            <Sparkles size={14} className="text-amber-400" /> Ver Ecrã Principal 16:9
-          </button>
         </div>
 
         {/* Header Title */}

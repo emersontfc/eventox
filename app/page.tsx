@@ -70,17 +70,6 @@ export default function HomePage() {
     setAuthModalOpen(true);
   };
 
-  const emersonEvent = events.find(e => e.slug === 'emerson') || {
-    id: 1,
-    slug: 'emerson',
-    title: 'Gala de Graduação',
-    hostName: 'Emerson Charles',
-    eventDate: '2026-12-11T14:00',
-    venue: 'Salão de Eventos Cajada II, Maputo',
-    description: 'A celebração de uma grande jornada académica e o início de um novo capítulo extraordinário.',
-    coverTheme: 'gold',
-  };
-
   return (
     <div className="home-portal-wrapper">
       {/* Top Navbar */}
@@ -108,23 +97,23 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="home-hero">
         <div className="home-hero-content">
-          <span className="home-badge">✦ O SEU EVENTO. O SEU LINK EXCLUSIVO. ✦</span>
+          <span className="home-badge">✦ PLATAFORMA PROFISSIONAL DE EVENTOS & EXPERIÊNCIAS AO VIVO ✦</span>
           <h1>
             Celebrações inesquecíveis,<br />
-            <strong>gestão inteligente.</strong>
+            <strong>gestão e interacção em direto.</strong>
           </h1>
           <p className="home-hero-subtitle">
             Cria o teu evento, gera o <strong>link de visualização oficial</strong> com QR Code para os teus convidados,
-            organiza mesas interativas, controla presenças (RSVP) e gere o bar e catering num só lugar.
+            projeta o <strong>Estúdio Live 16:9 na TV</strong> com jogos interativos, quiz ao vivo e organiza mesas, RSVP e catering num só lugar.
           </p>
 
           <div className="home-hero-actions">
             <button className="hero-cta-button" onClick={() => openAuth('register')}>
               <Plus size={18} /> Criar Novo Evento Agora
             </button>
-            <a href="/emerson" className="hero-secondary-button">
-              Ver Gala do Emerson →
-            </a>
+            <button className="hero-secondary-button" onClick={() => openAuth('login')}>
+              <Lock size={16} /> Entrar na Minha Conta
+            </button>
           </div>
 
           {/* Quick Access search */}
@@ -134,7 +123,7 @@ export default function HomePage() {
               type="text"
               value={searchCode}
               onChange={(e) => setSearchCode(e.target.value)}
-              placeholder="Tens o link ou código de um evento? Digita aqui (ex: emerson)..."
+              placeholder="Tens o link ou código de um evento? Digita aqui para aceder..."
             />
             <button type="submit">Entrar →</button>
           </form>
@@ -177,34 +166,45 @@ export default function HomePage() {
 
             <div className="step-card">
               <span className="step-num">04</span>
-              <h3>Opera no Dia da Celebração</h3>
+              <h3>Estúdio Live & Interacção ao Vivo</h3>
               <p>
-                Acompanha presenças em direto no check-in, regista pedidos de bar e mesa com desconto automático de stock e controla a playlist e galeria da festa.
+                Projeta o modo 16:9 na TV com Quiz interativo, votações dos convidados, contagem decrescente e controle total a partir do Estúdio Live do organizador.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Featured Event: Emerson's Graduation */}
+      {/* Showcase Section: Eventox Experience Live */}
       <section className="home-featured-section">
         <div className="featured-card">
-          <div className="featured-badge">✦ EVENTO EM DESTAQUE ✦</div>
+          <div className="featured-badge">✦ NOVO: ESTÚDIO LIVE & EXPERIÊNCIAS 16:9 ✦</div>
           <div className="featured-header">
             <div>
-              <span className="overline">{emersonEvent.hostName?.toUpperCase()}</span>
-              <h2>{emersonEvent.title}</h2>
+              <span className="overline">INTERACÇÃO CINEMATOGRÁFICA</span>
+              <h2>O Teu Evento no Ecrã Grande</h2>
               <p className="featured-venue">
-                <MapPin size={16} /> {emersonEvent.venue} · <CalendarDays size={16} /> 11 de Dezembro de 2026
+                Projetor, TV ou Painel LED · Sincronização em tempo real · Jogos estilo Kahoot & Mentimeter
               </p>
             </div>
-            <a href={`/${emersonEvent.slug}`} className="primary-pill">
-              Aceder ao Evento <ArrowRight size={16} />
-            </a>
+            <button onClick={() => openAuth('register')} className="primary-pill">
+              Começar Agora <ArrowRight size={16} />
+            </button>
           </div>
 
-          <div className="featured-countdown">
-            <Countdown date={emersonEvent.eventDate} title="CONTAGEM REGRESSIVA OFICIAL" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left">
+              <h4 className="text-amber-300 font-bold mb-1">🎮 Quiz Live Competitivo</h4>
+              <p className="text-xs text-neutral-300">Convidados respondem pelo telemóvel com PIN temporário. Pódio e pontuação ao vivo no ecrã da festa.</p>
+            </div>
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left">
+              <h4 className="text-amber-300 font-bold mb-1">📊 Votações & Nuvem de Palavras</h4>
+              <p className="text-xs text-neutral-300">Sondagens ao vivo, perguntas moderadas ao anfitrião e batalha interativa entre as mesas.</p>
+            </div>
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left">
+              <h4 className="text-amber-300 font-bold mb-1">📺 Ecrã Centralizado</h4>
+              <p className="text-xs text-neutral-300">Controlo central a partir do Estúdio: todas as TVs mostram exatamente a mesma cena em sincronia perfeita.</p>
+            </div>
           </div>
         </div>
       </section>
