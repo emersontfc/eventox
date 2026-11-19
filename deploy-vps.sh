@@ -31,12 +31,10 @@ npm install
 echo "🔨 A compilar o Eventox para Node Standalone..."
 npm run build:vps
 
-# 4. Criar diretório de dados e importar se houver estado anterior
+# 4. Criar diretório de dados e aplicar migrações persistentes
 mkdir -p data
-if [ ! -f "data/eventox.db" ]; then
-    echo "🗄️ A inicializar base de dados persistente SQLite..."
-    node scripts/import-existing-data.mjs || true
-fi
+echo "🗄️ A verificar e aplicar migrações da base de dados SQLite..."
+node scripts/migrate-db.mjs
 
 # 5. Verificar PM2
 if ! command -v pm2 &> /dev/null; then
