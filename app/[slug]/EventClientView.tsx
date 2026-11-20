@@ -58,6 +58,16 @@ interface MuralMessage {
   createdAt: string;
 }
 
+interface MenuItemDisplay {
+  id: string | number;
+  name: string;
+  category: string;
+  unit?: string | null;
+  stock?: number | null;
+  description?: string | null;
+  isAvailable?: boolean;
+}
+
 export default function EventClientView({
   event,
   initialAdmin = false,
@@ -121,6 +131,9 @@ export default function EventClientView({
   // Event stats
   const [confirmedCount, setConfirmedCount] = useState<number>(0);
 
+  // Menu / Catering state
+  const [menuItemsList, setMenuItemsList] = useState<MenuItemDisplay[]>([]);
+
   // Formatted date and time
   const formattedDate = new Date(
     (event.eventDate || '2026-12-11T14:00') + ':00+02:00'
@@ -151,6 +164,7 @@ export default function EventClientView({
         if (data.playlist) setPlaylist(data.playlist);
         if (data.guestbook) setMuralMessages(data.guestbook);
         if (data.stats?.confirmedGuests) setConfirmedCount(data.stats.confirmedGuests);
+        if (data.menu && Array.isArray(data.menu)) setMenuItemsList(data.menu);
       } catch {
         // Non-blocking
       }
@@ -1064,89 +1078,209 @@ export default function EventClientView({
       )}
 
       {/* TAB 4: MENU & BAR */}
-      {activeTab === 'menu' && (
-        <section className="portal-menu-section" style={{ padding: '0 20px 40px' }}>
-          <div className="capabilities-header" style={{ textAlign: 'center', marginBottom: '25px' }}>
-            <span className="overline">GASTRONOMIA & COCKTAILS</span>
-            <h2>Cardápio & Bar da Gala</h2>
-            <p>Uma seleção requintada preparada para brindar a esta conquista especial.</p>
-          </div>
+      {activeTab === 'menu' && (() => {
+        const entradas = menuItemsList.filter((m) => m.category === 'entrada');
+        const pratos = menuItemsList.filter((m) => m.category === 'prato_principal' || m.category === 'comida');
+        const sobremesas = menuItemsList.filter((m) => m.category === 'sobremesa');
+        const bar = menuItemsList.filter((m) => m.category === 'bebida' || m.category === 'bar');
+        const lanches = menuItemsList.filter((m) => m.category === 'lanche');
+        const outros = menuItemsList.filter(
+          (m) => !['entrada', 'prato_principal', 'comida', 'sobremesa', 'bebida', 'bar', 'lanche'].includes(m.category)
+        );
+        const hasCustomItems = menuItemsList.length > 0;
 
-          <div className="menu-showcase-grid">
-            <div className="menu-category-card">
-              <h3>🥗 Entradas & Canapés</h3>
-              <div className="menu-items-list">
-                <div className="menu-item-row">
-                  <strong>Tártaro de Salmão com Abacate</strong>
-                  <small>Temperado com citrinos frescos e ervas aromáticas</small>
-                </div>
-                <div className="menu-item-row">
-                  <strong>Bruschettas Mediterrânicas</strong>
-                  <small>Tomate cereja confitado, manjericão e redução balsâmica</small>
-                </div>
-                <div className="menu-item-row">
-                  <strong>Tábua de Queijos Selecionados & Frios</strong>
-                  <small>Acompanhada por compotas artesanais e tostas finas</small>
-                </div>
-              </div>
+        return (
+          <section className="portal-menu-section" style={{ padding: '0 20px 40px' }}>
+            <div className="capabilities-header" style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <span className="overline">GASTRONOMIA & COCKTAILS</span>
+              <h2>Cardápio & Bar da Gala</h2>
+              <p>Uma seleção requintada preparada para brindar a esta celebração especial.</p>
             </div>
 
-            <div className="menu-category-card">
-              <h3>🥩 Pratos Principais</h3>
-              <div className="menu-items-list">
-                <div className="menu-item-row">
-                  <strong>Lombo de Novilho em Crosta de Ervas</strong>
-                  <small>Com molho de vinho do Porto e batata gratinada dauphinoise</small>
-                </div>
-                <div className="menu-item-row">
-                  <strong>Robalo Grelhado com Risotto de Limão</strong>
-                  <small>Acompanhado por legumes salteados na manteiga clarificada</small>
-                </div>
-                <div className="menu-item-row">
-                  <strong>Ravioli de Cogumelos Selvagens (Opção Vegetariana)</strong>
-                  <small>Com creme suave de trufa negra e parmesão envelhecido</small>
-                </div>
-              </div>
-            </div>
+            <div className="menu-showcase-grid">
+              {hasCustomItems ? (
+                <>
+                  {entradas.length > 0 && (
+                    <div className="menu-category-card">
+                      <h3>🥗 Entradas & Canapés</h3>
+                      <div className="menu-items-list">
+                        {entradas.map((item) => (
+                          <div key={item.id} className="menu-item-row">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <strong>{item.name}</strong>
+                              {item.unit && <span style={{ fontSize: '11px', opacity: 0.7 }}>{item.unit}</span>}
+                            </div>
+                            {item.description && <small>{item.description}</small>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-            <div className="menu-category-card">
-              <h3>🥂 Bar & Cocktails</h3>
-              <div className="menu-items-list">
-                <div className="menu-item-row">
-                  <strong>Espumante & Champagne de Honra</strong>
-                  <small>Servido para o brinde solene de graduação</small>
-                </div>
-                <div className="menu-item-row">
-                  <strong>Cocktail de Assinatura "Graduation Gold"</strong>
-                  <small>Gin premium, xarope de flor de sabugueiro e citrinos</small>
-                </div>
-                <div className="menu-item-row">
-                  <strong>Vinhos Tintos & Brancos Reserva</strong>
-                  <small>Seleção exclusiva da garrafeira da celebração</small>
-                </div>
-              </div>
-            </div>
+                  {pratos.length > 0 && (
+                    <div className="menu-category-card">
+                      <h3>🥩 Pratos Principais</h3>
+                      <div className="menu-items-list">
+                        {pratos.map((item) => (
+                          <div key={item.id} className="menu-item-row">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <strong>{item.name}</strong>
+                              {item.unit && <span style={{ fontSize: '11px', opacity: 0.7 }}>{item.unit}</span>}
+                            </div>
+                            {item.description && <small>{item.description}</small>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-            <div className="menu-category-card">
-              <h3>🍰 Sobremesas & Doces</h3>
-              <div className="menu-items-list">
-                <div className="menu-item-row">
-                  <strong>Bolo de Gala Red Velvet & Frutos Silvestres</strong>
-                  <small>O bolo solene do corte de honra da festa</small>
-                </div>
-                <div className="menu-item-row">
-                  <strong>Petit Gâteau de Chocolate Belga</strong>
-                  <small>Com bola de gelado artesanal de baunilha de Madagáscar</small>
-                </div>
-                <div className="menu-item-row">
-                  <strong>Mousse de Maracujá Fresco com Merengue</strong>
-                  <small>Textura aveludada e toque cítrico refrescante</small>
-                </div>
-              </div>
+                  {sobremesas.length > 0 && (
+                    <div className="menu-category-card">
+                      <h3>🍰 Sobremesas & Doces</h3>
+                      <div className="menu-items-list">
+                        {sobremesas.map((item) => (
+                          <div key={item.id} className="menu-item-row">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <strong>{item.name}</strong>
+                              {item.unit && <span style={{ fontSize: '11px', opacity: 0.7 }}>{item.unit}</span>}
+                            </div>
+                            {item.description && <small>{item.description}</small>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {bar.length > 0 && (
+                    <div className="menu-category-card">
+                      <h3>🥂 Bar & Cocktails</h3>
+                      <div className="menu-items-list">
+                        {bar.map((item) => (
+                          <div key={item.id} className="menu-item-row">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <strong>{item.name}</strong>
+                              {item.unit && <span style={{ fontSize: '11px', opacity: 0.7 }}>{item.unit}</span>}
+                            </div>
+                            {item.description && <small>{item.description}</small>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {lanches.length > 0 && (
+                    <div className="menu-category-card">
+                      <h3>🌙 Ceia & Lanches Noturnos</h3>
+                      <div className="menu-items-list">
+                        {lanches.map((item) => (
+                          <div key={item.id} className="menu-item-row">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <strong>{item.name}</strong>
+                              {item.unit && <span style={{ fontSize: '11px', opacity: 0.7 }}>{item.unit}</span>}
+                            </div>
+                            {item.description && <small>{item.description}</small>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {outros.length > 0 && (
+                    <div className="menu-category-card">
+                      <h3>🍽️ Outras Especialidades</h3>
+                      <div className="menu-items-list">
+                        {outros.map((item) => (
+                          <div key={item.id} className="menu-item-row">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                              <strong>{item.name}</strong>
+                              {item.unit && <span style={{ fontSize: '11px', opacity: 0.7 }}>{item.unit}</span>}
+                            </div>
+                            {item.description && <small>{item.description}</small>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="menu-category-card">
+                    <h3>🥗 Entradas & Canapés</h3>
+                    <div className="menu-items-list">
+                      <div className="menu-item-row">
+                        <strong>Tártaro de Salmão com Abacate</strong>
+                        <small>Temperado com citrinos frescos e ervas aromáticas</small>
+                      </div>
+                      <div className="menu-item-row">
+                        <strong>Bruschettas Mediterrânicas</strong>
+                        <small>Tomate cereja confitado, manjericão e redução balsâmica</small>
+                      </div>
+                      <div className="menu-item-row">
+                        <strong>Tábua de Queijos Selecionados & Frios</strong>
+                        <small>Acompanhada por compotas artesanais e tostas finas</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="menu-category-card">
+                    <h3>🥩 Pratos Principais</h3>
+                    <div className="menu-items-list">
+                      <div className="menu-item-row">
+                        <strong>Lombo de Novilho em Crosta de Ervas</strong>
+                        <small>Com molho de vinho do Porto e batata gratinada dauphinoise</small>
+                      </div>
+                      <div className="menu-item-row">
+                        <strong>Robalo Grelhado com Risotto de Limão</strong>
+                        <small>Acompanhado por legumes salteados na manteiga clarificada</small>
+                      </div>
+                      <div className="menu-item-row">
+                        <strong>Ravioli de Cogumelos Selvagens (Opção Vegetariana)</strong>
+                        <small>Com creme suave de trufa negra e parmesão envelhecido</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="menu-category-card">
+                    <h3>🥂 Bar & Cocktails</h3>
+                    <div className="menu-items-list">
+                      <div className="menu-item-row">
+                        <strong>Espumante & Champagne de Honra</strong>
+                        <small>Servido para o brinde solene de graduação</small>
+                      </div>
+                      <div className="menu-item-row">
+                        <strong>Cocktail de Assinatura "Graduation Gold"</strong>
+                        <small>Gin premium, xarope de flor de sabugueiro e citrinos</small>
+                      </div>
+                      <div className="menu-item-row">
+                        <strong>Vinhos Tintos & Brancos Reserva</strong>
+                        <small>Seleção exclusiva da garrafeira da celebração</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="menu-category-card">
+                    <h3>🍰 Sobremesas & Doces</h3>
+                    <div className="menu-items-list">
+                      <div className="menu-item-row">
+                        <strong>Bolo de Gala Red Velvet & Frutos Silvestres</strong>
+                        <small>O bolo solene do corte de honra da festa</small>
+                      </div>
+                      <div className="menu-item-row">
+                        <strong>Petit Gâteau de Chocolate Belga</strong>
+                        <small>Com bola de gelado artesanal de baunilha de Madagáscar</small>
+                      </div>
+                      <div className="menu-item-row">
+                        <strong>Mousse de Maracujá Fresco com Merengue</strong>
+                        <small>Textura aveludada e toque cítrico refrescante</small>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        );
+      })()}
 
       {/* TAB 5: INTEGRATED MURAL DE FELICITAÇÕES */}
       {activeTab === 'mural' && (

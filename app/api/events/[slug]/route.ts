@@ -35,7 +35,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     // Get menu highlights for guests showcase
     const menu = await db.select().from(menuItems).where(
       and(eq(menuItems.eventId, event.id), eq(menuItems.available, true))
-    ).limit(12);
+    );
 
     // Get all songs for playlist showcase ordered by position
     const songs = await db.select().from(playlist)
@@ -74,7 +74,14 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
         pendingGuests: pendingCount,
       },
       tables: tables.map((t: any) => ({ id: t.id, name: t.name, capacity: t.capacity })),
-      menu: menu.map((m: any) => ({ id: m.id, name: m.name, category: m.category, description: m.description })),
+      menu: menu.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        category: m.category,
+        description: m.description,
+        stock: m.stock,
+        unit: m.unit,
+      })),
       playlist: songs.map((s: any) => ({ id: s.id, title: s.title, artist: s.artist, url: s.url, status: s.status, position: s.position })),
       guestbook: guestbook.map((g: any) => ({ id: g.id, senderName: g.senderName, relationship: g.relationship, message: g.message, createdAt: g.createdAt })),
       gallery: media.map((m: any) => ({ id: m.id, key: m.key, mime: m.mime, uploader: m.uploader, createdAt: m.createdAt })),
