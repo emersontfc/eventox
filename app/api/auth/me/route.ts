@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { getDb } from '../../../../db';
 import { events, eventMemberships } from '../../../../db/schema';
-import { eq, or } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +45,7 @@ export async function GET() {
         permissions: eventMemberships.permissions,
       })
       .from(eventMemberships)
-      .where(eq(eventMemberships.userId, user.id));
+      .where(and(eq(eventMemberships.userId, user.id), eq(eventMemberships.status, 'ativo')));
 
     const memberEventIds = memberships.map((m: any) => m.eventId);
     const memberEvents = memberEventIds.length > 0

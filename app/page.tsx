@@ -81,9 +81,9 @@ export default function HomePage() {
             <button className="hero-cta-button" onClick={() => openAuth('register')}>
               <Plus size={18} /> Criar Novo Evento Agora
             </button>
-            <button className="hero-secondary-button" onClick={() => openAuth('login')}>
+            <a className="hero-secondary-button" href="/conta">
               <Lock size={16} /> Entrar na Minha Conta
-            </button>
+            </a>
           </div>
 
           {/* Quick Access search */}

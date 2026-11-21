@@ -102,28 +102,25 @@ export async function POST(request: Request, context: { params: Promise<{ token:
 
     const now = new Date().toISOString();
 
-    // Insert or update membership
-    await db
-      .insert(eventMemberships)
-      .values({
-        userId: user.id,
-        eventId: event.id,
-        role: invite.role,
-        permissions: invite.permissions,
-        status: 'ativo',
-        createdAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [eventMemberships.userId, eventMemberships.eventId],
-        set: {
-          role: invite.role,
-          permissions: invite.permissions,
-          status: 'ativo',
-        },
-      });
+    if (invite.email && invite.email.trim().toLowerCase() !== user.email.trim().toLowerCase()) {
+      return NextResponse.json({ error: 'Entra com o email indicado no convite.' }, { status: 403 });
+    }
 
-    // Mark invitation as accepted
-    await db.update(invitations).set({ status: 'aceite' }).where(eq(invitations.id, invite.id));
+    const accepted = db.transaction((tx: typeof db) => {
+      const claimed = tx.update(invitations).set({ status: 'aceite' })
+        .where(and(eq(invitations.id, invite.id), eq(invitations.status, 'pendente')))
+        .returning({ id: invitations.id }).get();
+      if (!claimed) return false;
+      tx.insert(eventMemberships).values({
+        userId: user.id, eventId: event.id, role: invite.role, permissions: invite.permissions,
+        status: 'ativo', createdAt: now,
+      }).onConflictDoUpdate({
+        target: [eventMemberships.userId, eventMemberships.eventId],
+        set: { role: invite.role, permissions: invite.permissions, status: 'ativo' },
+      }).run();
+      return true;
+    });
+    if (!accepted) return NextResponse.json({ error: 'O convite já foi utilizado ou revogado.' }, { status: 409 });
 
     await logAuditAction({
       eventId: event.id,

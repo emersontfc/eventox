@@ -50,7 +50,7 @@ export default function UserDashboardPage() {
       const data = await res.json() as { authenticated: boolean; user: UserProfile | null; events: DashboardEvent[] };
 
       if (!data.authenticated || !data.user) {
-        setAuthModalOpen(true);
+        router.replace('/conta');
         setLoading(false);
         return;
       }

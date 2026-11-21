@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../../db';
-import { users, invitations, eventMemberships } from '../../../../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { users } from '../../../../db/schema';
+import { eq } from 'drizzle-orm';
 import { hashPassword, setAuthCookie, logAuditAction } from '../../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -58,28 +58,6 @@ export async function POST(request: Request) {
         updatedAt: now,
       })
       .returning();
-
-    // Check if there are pending invitations for this email and automatically accept them
-    const pendingInvites = await db
-      .select()
-      .from(invitations)
-      .where(and(eq(invitations.email, email), eq(invitations.status, 'pendente')));
-
-    for (const inv of pendingInvites) {
-      // Check expiration
-      if (new Date(inv.expiresAt).getTime() > Date.now()) {
-        await db.insert(eventMemberships).values({
-          userId: newUser.id,
-          eventId: inv.eventId,
-          role: inv.role,
-          permissions: inv.permissions,
-          status: 'ativo',
-          createdAt: now,
-        }).onConflictDoNothing();
-
-        await db.update(invitations).set({ status: 'aceite' }).where(eq(invitations.id, inv.id));
-      }
-    }
 
     await logAuditAction({
       userId: newUser.id,

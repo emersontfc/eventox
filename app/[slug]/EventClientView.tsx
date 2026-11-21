@@ -419,9 +419,9 @@ export default function EventClientView({
               </a>
             </div>
           ) : (
-            <button className="outline-pill" onClick={() => setAuthModalOpen(true)}>
-              <Lock size={15} /> Acesso de Equipa
-            </button>
+            <a className="outline-pill" href={`/conta?continuar=${encodeURIComponent(`/${event.slug}/organizar`)}`}>
+              <Lock size={15} /> Entrar como equipa
+            </a>
           )}
         </div>
       </header>
@@ -1408,7 +1408,7 @@ export default function EventClientView({
           <div className="footer-links">
             <a href="/">Criar Outro Evento</a>
             <span>·</span>
-            <button onClick={() => setAuthModalOpen(true)}>Acesso de Equipa</button>
+            <button onClick={() => setAuthModalOpen(true)}>Acesso por PIN</button>
           </div>
         </div>
       </footer>

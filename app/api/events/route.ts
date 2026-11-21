@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     const photoAlbumUrl = String(body.photoAlbumUrl || '').trim().slice(0, 500);
 
     if (!slug) throw new Error('Define um link / slug para o evento (ex: meu-evento).');
-    if (['api', 'admin', '_next', 'static', 'public'].includes(slug)) {
+    if (['api', 'admin', '_next', 'static', 'public', 'conta'].includes(slug)) {
       throw new Error('Este link está reservado pelo sistema.');
     }
     if (!title) throw new Error('O título do evento é obrigatório.');
