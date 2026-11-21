@@ -2007,36 +2007,45 @@
 /* Modern Segmented Navigation Tabs for Guests */
 .portal-tabs-nav {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   padding: 8px;
   background: var(--portal-surface);
   border: 1px solid var(--portal-border);
-  border-radius: 9999px;
-  max-width: 860px;
-  margin: -15px auto 40px;
+  border-radius: 18px;
+  width: calc(100% - 32px);
+  max-width: 960px;
+  margin: 0 auto 24px;
   box-shadow: var(--portal-card-shadow);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  overflow-x: auto;
-  position: relative;
-  z-index: 10;
 }
 .portal-tab-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: 9999px;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 12px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--portal-text-secondary);
-  font-size: 13px;
+  font-size: 0.875rem;
   font-weight: 700;
+  text-align: left;
   cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
+}
+.portal-tab-pill svg {
+  flex-shrink: 0;
+}
+.portal-tab-pill:focus-visible {
+  outline: 2px solid var(--portal-accent);
+  outline-offset: 2px;
+}
+.guest-preview-action {
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  text-decoration: none;
+  text-align: center;
 }
 .portal-tab-pill:hover {
   color: var(--portal-text-primary);
@@ -2404,9 +2413,11 @@
     grid-template-columns: 1fr;
   }
   .portal-tabs-nav {
-    justify-content: flex-start;
-    border-radius: 20px;
-    padding: 6px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .portal-tab-pill {
+    padding-inline: 8px;
   }
   .vip-ticket-body {
     grid-template-columns: 1fr;

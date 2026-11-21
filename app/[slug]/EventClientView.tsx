@@ -389,15 +389,18 @@ export default function EventClientView({
   // Admin Switcher View
   if (isAdmin && viewMode === 'admin') {
     return (
-      <div>
-        <div className="admin-view-banner">
-          <span>Modo Administrador Ativo</span>
-          <button onClick={() => setViewMode('guest')}>
-            Ver como Convidado (Portal Público)
-          </button>
-        </div>
-        <AdminDashboard slug={event.slug} onExit={() => setViewMode('guest')} />
-      </div>
+      <AdminDashboard
+        slug={event.slug}
+        onPreview={() => {
+          setActiveTab('seating');
+          setViewMode('guest');
+          window.scrollTo(0, 0);
+        }}
+        onExit={() => {
+          setIsAdmin(false);
+          setViewMode('guest');
+        }}
+      />
     );
   }
 
@@ -424,7 +427,7 @@ export default function EventClientView({
                 <Palette size={15} /> Escolher Template
               </button>
               <button className="primary-pill" onClick={() => setViewMode('admin')}>
-                <Shield size={16} /> Painel de Organização
+                <Shield size={16} /> Voltar ao painel
               </button>
             </div>
           ) : (
@@ -438,24 +441,6 @@ export default function EventClientView({
       {/* Hero Section with refined aesthetics based on chosen template */}
       <section className="portal-hero" style={{ background: theme.heroGradient }}>
         <div className="portal-hero-container">
-          {/* Luxury Crest Badge - Clean & Editorial without monogram acronyms */}
-          <div className="portal-hero-crest">
-            <div className="portal-crest-inner">
-              <Sparkles size={13} className="portal-sparkle-icon" />
-              <span>CONVITE EXCLUSIVO DE GALA</span>
-            </div>
-          </div>
-
-          <span
-            className="portal-badge transition-colors duration-300"
-            style={{
-              background: theme.badgeStyle.bg,
-              border: theme.badgeStyle.border,
-              color: theme.badgeStyle.text,
-            }}
-          >
-            ✦ CELEBRAÇÃO & CONVITE SOLENE ✦
-          </span>
           <h1 className="portal-title">{event.title}</h1>
           <p className="portal-host">
             Anfitrião de Honra: <strong>{event.hostName}</strong>
@@ -501,36 +486,9 @@ export default function EventClientView({
                 cursor: 'pointer',
               }}
             >
-              🎟️ Consultar Meu Lugar & Bilhete VIP
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('music');
-                const el = document.getElementById('portal-content-anchor');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="portal-secondary-button"
-            >
-              <Music2 size={16} /> Playlist da Festa
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('gallery');
-                const el = document.getElementById('portal-content-anchor');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="portal-secondary-button"
-            >
-              <Camera size={16} /> Fotos da Festa
+              Confirmar presença e ver lugar
             </button>
           </div>
-        </div>
-      </section>
-
-      {/* Countdown Card */}
-      <section className="portal-countdown-section">
-        <div className="portal-countdown-container">
-          <Countdown date={event.eventDate} title="CONTAGEM REGRESSIVA OFICIAL" />
         </div>
       </section>
 
@@ -541,27 +499,25 @@ export default function EventClientView({
       <nav className="portal-tabs-nav" aria-label="Navegação do evento">
         <button
           className={`portal-tab-pill ${activeTab === 'seating' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'seating'}
           onClick={() => setActiveTab('seating')}
         >
           <Search size={15} />
-          <span>Mesa & RSVP</span>
+          <span>Presença e mesa</span>
         </button>
 
         <button
           className={`portal-tab-pill ${activeTab === 'music' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'music'}
           onClick={() => setActiveTab('music')}
         >
           <Music2 size={15} className="text-amber-500" />
-          <span>Músicas & Pedidos</span>
-          {playlist.length > 0 && (
-            <span style={{ marginLeft: '4px', fontSize: '11px', background: 'var(--portal-accent-subtle)', padding: '2px 7px', borderRadius: '10px', color: 'var(--portal-accent)', fontWeight: 700 }}>
-              {playlist.length}
-            </span>
-          )}
+          <span>Músicas</span>
         </button>
 
         <button
           className={`portal-tab-pill ${activeTab === 'schedule' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'schedule'}
           onClick={() => setActiveTab('schedule')}
         >
           <Clock3 size={15} />
@@ -570,34 +526,38 @@ export default function EventClientView({
 
         <button
           className={`portal-tab-pill ${activeTab === 'menu' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'menu'}
           onClick={() => setActiveTab('menu')}
         >
           <UtensilsCrossed size={15} />
-          <span>Cardápio & Bar</span>
+          <span>Cardápio e bar</span>
         </button>
 
         <button
           className={`portal-tab-pill ${activeTab === 'mural' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'mural'}
           onClick={() => setActiveTab('mural')}
         >
           <Heart size={15} className="text-rose-500" />
-          <span>Mural de Felicitações</span>
+          <span>Mural</span>
         </button>
 
         <button
           className={`portal-tab-pill ${activeTab === 'gallery' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'gallery'}
           onClick={() => setActiveTab('gallery')}
         >
           <Camera size={15} />
-          <span>Galeria</span>
+          <span>Galeria de fotos</span>
         </button>
 
         <button
           className={`portal-tab-pill ${activeTab === 'info' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'info'}
           onClick={() => setActiveTab('info')}
         >
           <Navigation size={15} />
-          <span>Local & Traje</span>
+          <span>Local e traje</span>
         </button>
       </nav>
 
@@ -1486,10 +1446,17 @@ export default function EventClientView({
         </div>
       )}
 
+      {/* Countdown Card */}
+      <section className="portal-countdown-section">
+        <div className="portal-countdown-container">
+          <Countdown date={event.eventDate} title="CONTAGEM REGRESSIVA OFICIAL" />
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="portal-footer">
         <div className="footer-container">
-          <p>© 2026 {event.title} ✦ Eventox — Gestão Inteligente de Eventos</p>
+          <p>© {new Date().getFullYear()} Eventox</p>
           <div className="footer-links">
             <a href="/">Criar Outro Evento</a>
             <span>·</span>

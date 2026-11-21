@@ -58,7 +58,7 @@ const statuses: Record<string, string> = {
 
 const blank: Guest = { id: 0, name: '', phone: '', tableId: 1, seat: 1, status: 'pendente', notes: '' };
 
-export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: string; onExit?: () => void }) {
+export default function AdminDashboard({ slug = 'emerson', onExit, onPreview }: { slug?: string; onExit?: () => void; onPreview?: () => void }) {
   const [data, setData] = useState<Data>(initial);
   const [tab, setTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -269,13 +269,6 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             </button>
           ))}
         </nav>
-        <div className="sidebar-foot" style={{ cursor: 'pointer' }} onClick={() => window.open(`/${slug}`, '_blank')}>
-          <ExternalLink size={18} />
-          <div>
-            <strong>Ver Portal Público ↗</strong>
-            <span>/{slug}</span>
-          </div>
-        </div>
       </aside>
 
       {menu && <div className="shade" onClick={() => setMenu(false)} />}
@@ -304,6 +297,15 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             }[tab] || tab}</span>
           </div>
           <div className="topright">
+            {onPreview ? (
+              <button type="button" className="outline guest-preview-action" onClick={onPreview}>
+                Ver como convidado
+              </button>
+            ) : (
+              <a className="outline guest-preview-action" href={`/${slug}`} target="_blank" rel="noopener noreferrer">
+                Ver página pública
+              </a>
+            )}
             <button
               type="button"
               onClick={() => go('studio')}
