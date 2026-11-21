@@ -2642,3 +2642,270 @@ i.taken.taken-honra {
     margin-top: 12px;
   }
 }
+
+.reception-desk,
+.program-editor {
+  max-width: 960px;
+  margin-inline: auto;
+}
+
+.desk-heading {
+  margin: 0 0 22px;
+}
+
+.desk-heading h1 {
+  margin: 0;
+  font-size: clamp(1.85rem, 4vw, 2.65rem);
+  line-height: 1.1;
+}
+
+.desk-heading p {
+  margin: 8px 0 0;
+  color: #68515b;
+  font-size: 1rem;
+}
+
+.desk-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.desk-tabs button {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid #d9cbd1;
+  border-radius: 8px;
+  background: #fff;
+  color: #563b47;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.desk-tabs button[aria-pressed="true"] {
+  background: #652c44;
+  border-color: #652c44;
+  color: #fff;
+}
+
+.desk-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 51px;
+  margin: 16px 0 12px;
+  padding-left: 13px;
+  border: 1px solid #d9cbd1;
+  border-radius: 10px;
+  background: #fff;
+  color: #652c44;
+}
+
+.desk-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 8px 12px 0;
+  background: transparent;
+  border: 0;
+  color: #32202a;
+  font-size: 1rem;
+}
+
+.desk-search:focus-within {
+  outline: 2px solid #925368;
+  outline-offset: 2px;
+}
+
+.desk-search input:focus-visible {
+  outline: none;
+}
+
+.desk-search button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
+
+.desk-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px;
+  border-radius: 8px;
+  background: #eaf6ef;
+  color: #205a40;
+}
+
+.desk-result-count {
+  color: #68515b;
+  font-size: 0.875rem;
+}
+
+.desk-guests {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.desk-guest {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(9rem, auto) minmax(10rem, auto);
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e8dde1;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.desk-guest-info {
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.desk-guest-info span {
+  color: #68515b;
+  font-size: 0.875rem;
+}
+
+.desk-guest .status {
+  justify-self: start;
+}
+
+.desk-guest button,
+.program-savebar button,
+.program-moment-actions button,
+.program-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+}
+
+.desk-empty {
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px dashed #d9cbd1;
+  background: #fff;
+}
+
+.program-toolbar,
+.program-moment-head,
+.program-savebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.program-state {
+  margin: 0;
+  color: #68515b;
+  font-size: 0.875rem;
+}
+
+.program-moment-head {
+  margin-bottom: 12px;
+}
+
+.program-moment-head strong {
+  flex: 1;
+  min-width: 0;
+}
+
+.program-moment-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.program-moment-actions button {
+  min-width: 44px;
+  padding: 0;
+}
+
+.program-item-fields textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d9cbd1;
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
+}
+
+.program-timeline {
+  list-style: none;
+  padding: 0;
+}
+
+.program-preview {
+  --portal-surface: #fff;
+  --portal-border-subtle: #e8dde1;
+  --portal-accent: #925368;
+  --portal-pill-active-bg: #652c44;
+  --portal-pill-active-text: #fff;
+  --portal-text-primary: #32202a;
+  --portal-text-secondary: #68515b;
+  margin: 20px 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: #f5eff2;
+}
+
+.program-preview h2 {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+}
+
+.program-savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding: 10px;
+  border: 1px solid #e8dde1;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.program-savebar p {
+  margin: 0 auto 0 0;
+  color: #205a40;
+}
+
+.program-savebar p:empty {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .desk-guest {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .program-savebar button {
+    flex: 1 1 8rem;
+  }
+
+  .program-savebar p {
+    flex-basis: 100%;
+  }
+
+  .program-timeline .timeline-card {
+    padding: 14px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+}
