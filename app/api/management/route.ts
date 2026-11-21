@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { isAdmin } from '../../admin-auth';
 import { getDb } from '../../../db';
 import { events, guestTables, guests, settings } from '../../../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
+import { hasPermission } from '../../../lib/permissions';
 import { planGuestImport } from '../../../lib/guest-import';
-import { hashPasscode } from '../../../lib/auth';
+import { hashPasscode, getEventMembershipContext } from '../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,24 +13,21 @@ function getSlug(request: Request) {
   return (url.searchParams.get('slug') || request.headers.get('x-event-slug') || 'emerson').toLowerCase().trim();
 }
 
-async function getEventAndId(db: ReturnType<typeof getDb>, slug: string) {
-  const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
-  if (event) return { event, eventId: event.id };
-  return { event: null, eventId: 1 };
-}
-
 export async function GET(request: Request) {
   const slug = getSlug(request);
-  if (!await isAdmin(slug)) return NextResponse.json({ error: 'Acesso reservado ao administrador' }, { status: 403 });
+  const access = await getEventMembershipContext(slug);
+  if (!access) return NextResponse.json({ error: 'Acesso reservado à equipa' }, { status: 403 });
+  const can = (permission: string) => hasPermission(access.role, access.permissions, permission);
 
   try {
     const db = getDb();
-    const { event, eventId } = await getEventAndId(db, slug);
-
+    const event = access.event;
+    const eventId = event.id;
     const [tables, people, prefs] = await Promise.all([
-      db.select().from(guestTables).where(eq(guestTables.eventId, eventId)),
-      db.select().from(guests).where(eq(guests.eventId, eventId)),
-      db.select().from(settings),
+      can('tables:view') || can('guests:view') || can('hospitality:view')
+        ? db.select().from(guestTables).where(eq(guestTables.eventId, eventId)) : [],
+      can('guests:view') ? db.select().from(guests).where(eq(guests.eventId, eventId)) : [],
+      can('event:manage') ? db.select().from(settings) : [],
     ]);
 
     const settingsObj = Object.fromEntries(prefs.map((x: any) => [x.key, x.value]));
@@ -67,15 +64,32 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const slug = getSlug(request);
-  if (!await isAdmin(slug)) return NextResponse.json({ error: 'Acesso reservado ao administrador' }, { status: 403 });
 
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return NextResponse.json({ error: 'Pedido inválido' }, { status: 400 }); }
 
   try {
-    const db = getDb();
-    const { event, eventId } = await getEventAndId(db, slug);
     const action = String(body.action || '');
+    const permissions: Record<string, string> = {
+      'guest-import': 'guests:create',
+      'guest-save': Number(body.id) > 0 ? 'guests:edit' : 'guests:create',
+      'guest-delete': 'guests:delete',
+      'guest-status': body.status === 'presente' ? 'guests:checkin' : 'guests:rsvp',
+      'table-save': Number(body.id) > 0 ? 'tables:edit' : 'tables:create',
+      'table-create': 'tables:create',
+      'table-rename': 'tables:edit',
+      'table-delete': 'tables:delete',
+      settings: 'event:manage',
+    };
+    const permission = Object.hasOwn(permissions, action) ? permissions[action] : undefined;
+    if (!permission) return NextResponse.json({ error: 'Ação desconhecida.' }, { status: 400 });
+    const access = await getEventMembershipContext(slug);
+    if (!access || !hasPermission(access.role, access.permissions, permission)) {
+      return NextResponse.json({ error: 'Sem permissão para esta ação.' }, { status: 403 });
+    }
+    const db = getDb();
+    const event = access.event;
+    const eventId = event.id;
 
     if (action === 'guest-import') {
       if (typeof body.text !== 'string' || body.text.length > 1000000) throw new Error('Lista inválida ou demasiado grande.');
@@ -132,6 +146,16 @@ export async function POST(request: Request) {
       } else {
         await db.insert(guests).values({ ...record, createdAt: new Date().toISOString() });
       }
+    } else if (action === 'guest-status') {
+      const id = Number(body.id);
+      const status = String(body.status);
+      if (!Number.isSafeInteger(id) || id < 1 || !['confirmado', 'presente'].includes(status)) {
+        throw new Error('Convidado ou estado inválido.');
+      }
+      const [updated] = await db.update(guests).set({ status })
+        .where(and(eq(guests.id, id), eq(guests.eventId, eventId), status === 'confirmado' ? ne(guests.status, 'presente') : undefined))
+        .returning({ id: guests.id });
+      if (!updated) return NextResponse.json({ error: 'Convidado indisponível para esta alteração.' }, { status: 409 });
     } else if (action === 'guest-delete') {
       const id = Number(body.id);
       if (!Number.isInteger(id) || id < 1) throw new Error('Convidado inválido.');

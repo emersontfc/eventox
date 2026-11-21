@@ -21,7 +21,7 @@ async function getEventId(db: ReturnType<typeof getDb>, slug: string) {
 
 export async function GET(req: Request) {
   const slug = getSlug(req);
-  if (!await isAdmin(slug)) return error('Acesso reservado ao administrador', 403);
+  if (!await isAdmin(slug, 'committee:view')) return error('Acesso reservado ao administrador', 403);
   try {
     const db = getDb();
     const eventId = await getEventId(db, slug);
@@ -37,7 +37,6 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const slug = getSlug(req);
-  if (!await isAdmin(slug)) return error('Acesso reservado ao administrador', 403);
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return error('Pedido inválido'); }
 
@@ -45,6 +44,8 @@ export async function POST(req: Request) {
     const db = getDb();
     const eventId = await getEventId(db, slug);
     const action = clean(body.action, 30), id = Number(body.id);
+    const permission = action === 'task-status' ? 'committee:tasks:update' : 'committee:edit';
+    if (!await isAdmin(slug, permission)) return error('Sem permissão para esta ação.', 403);
 
     if (action === 'member-save') {
       const name = clean(body.name), role = clean(body.role), area = clean(body.area, 90) || 'Coordenação geral', status = clean(body.status, 20);

@@ -282,7 +282,7 @@ export default function HomePage() {
         onClose={() => setAuthModalOpen(false)}
         defaultMode={authModalMode}
         onLoginSuccess={(slug) => {
-          window.location.href = `/${slug}`;
+          window.location.href = `/${slug}/organizar`;
         }}
       />
     </div>

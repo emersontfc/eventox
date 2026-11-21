@@ -107,7 +107,7 @@ export default function AuthModal({
         if (onLoginSuccess) {
           onLoginSuccess(cleanSlug);
         } else {
-          window.location.href = `/${cleanSlug}`;
+          window.location.href = `/${cleanSlug}/organizar`;
         }
         onClose();
       }, 700);
@@ -235,10 +235,10 @@ export default function AuthModal({
 
               <div className="auth-success-actions">
                 <a
-                  href={`/${createdEvent.slug}`}
+                  href={`/${createdEvent.slug}/organizar`}
                   className="primary-action-btn"
                 >
-                  Abrir Página do Evento →
+                  Abrir painel
                 </a>
               </div>
             </div>

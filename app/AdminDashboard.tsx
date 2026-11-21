@@ -9,6 +9,7 @@ import {
   type LucideIcon
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { hasPermission } from '../lib/permissions';
 import Hospitality from './Hospitality';
 import GuestImport from './GuestImport';
 import Committee from './Committee';
@@ -58,9 +59,26 @@ const statuses: Record<string, string> = {
 
 const blank: Guest = { id: 0, name: '', phone: '', tableId: 1, seat: 1, status: 'pendente', notes: '' };
 
-export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: string; onExit?: () => void }) {
+const sectionPermissions: Record<string, string> = {
+  guests: 'guests:view',
+  tables: 'tables:view',
+  studio: 'screen:control',
+  screen: 'screen:control',
+  templates: 'event:manage',
+  menu: 'hospitality:view',
+  orders: 'hospitality:view',
+  playlist: 'playlist:view',
+  committee: 'committee:view',
+  team: 'team:view',
+  settings: 'event:manage',
+};
+
+export default function AdminDashboard({ slug, role, permissions }: { slug: string; role: string; permissions: string[] }) {
+  const can = (permission: string) => hasPermission(role, permissions, permission);
   const [data, setData] = useState<Data>(initial);
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState(() => can('event:manage')
+    ? 'overview'
+    : Object.keys(sectionPermissions).find(section => can(sectionPermissions[section])) || 'overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -137,7 +155,7 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
   };
 
   const handleCheckIn = async (guest: Guest) => {
-    const success = await save({ action: 'guest-save', ...guest, status: 'presente' });
+    const success = await save({ action: 'guest-status', id: guest.id, status: 'presente' });
     if (success) {
       try {
         await fetch(`/api/screen/${slug}/messages`, {
@@ -151,14 +169,16 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ slug }),
-      });
+      await Promise.all([
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ slug }),
+        }),
+        fetch('/api/auth/user-logout', { method: 'POST' }),
+      ]);
     } catch {}
-    if (onExit) onExit();
-    else window.location.href = `/${slug}`;
+    window.location.href = `/${slug}`;
   };
 
   const occupied = (id: number, exclude = 0) => data.guests.filter(g => g.tableId === id && g.id !== exclude).map(g => g.seat);
@@ -211,7 +231,10 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
 
   const yes = data.guests.filter(g => ['confirmado', 'presente'].includes(g.status)).length;
   const pending = data.guests.filter(g => g.status === 'pendente').length;
-  const go = (name: string) => { setTab(name); setMenu(false); };
+  const go = (name: string) => {
+    if (name === 'overview' || can(sectionPermissions[name])) setTab(name);
+    setMenu(false);
+  };
 
   const csv = () => {
     const rows = [
@@ -261,7 +284,7 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             ['committee', Users, 'Comissão'],
             ['team', Shield, 'Equipa & Acessos'],
             ['settings', Settings2, 'Configurações'],
-          ].map(([id, Icon, label]) => (
+          ].filter(([id]) => id === 'overview' || can(sectionPermissions[id as string])).map(([id, Icon, label]) => (
             <button key={id as string} className={tab === id ? 'on' : ''} onClick={() => go(id as string)}>
               <Icon size={19} />
               {label as string}
@@ -269,13 +292,6 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             </button>
           ))}
         </nav>
-        <div className="sidebar-foot" style={{ cursor: 'pointer' }} onClick={() => window.open(`/${slug}`, '_blank')}>
-          <ExternalLink size={18} />
-          <div>
-            <strong>Ver Portal Público ↗</strong>
-            <span>/{slug}</span>
-          </div>
-        </div>
       </aside>
 
       {menu && <div className="shade" onClick={() => setMenu(false)} />}
@@ -304,6 +320,10 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             }[tab] || tab}</span>
           </div>
           <div className="topright">
+            <a className="outline guest-preview-action" href={`/${slug}`}>
+              Ver como convidado
+            </a>
+            {can('screen:control') && (
             <button
               type="button"
               onClick={() => go('studio')}
@@ -327,6 +347,7 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
               <span>Estúdio Live</span>
               <span className="green-dot" style={{ width: '7px', height: '7px' }} />
             </button>
+            )}
             <button
               type="button"
               onClick={() => window.open(`/${slug}/screen`, '_blank')}
@@ -485,9 +506,9 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                   <p>Organiza nomes, lugares e confirmações num só lugar.</p>
                 </div>
                 <div className="actions">
-                  <button className="outline" disabled={loading} onClick={() => setImportOpen(true)}><ClipboardList size={17} /> Adicionar lista</button>
+                  {can('guests:create') && <button className="outline" disabled={loading} onClick={() => setImportOpen(true)}><ClipboardList size={17} /> Importar lista</button>}
                   <button className="outline" onClick={csv}><Download size={17} /> Exportar CSV</button>
-                  <button className="primary" onClick={() => add()}><Plus size={18} /> Adicionar convidado</button>
+                  {can('guests:create') && <button className="primary" onClick={() => add()}><Plus size={18} /> Adicionar convidado</button>}
                 </div>
               </div>
               <div className="quick-stats">
@@ -528,7 +549,13 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                           <td><span className={'status ' + g.status}>{statuses[g.status]}</span></td>
                           <td>
                             <div className="row-buttons">
-                              {g.status !== 'presente' ? (
+                              {can('guests:rsvp') && ['pendente', 'recusado'].includes(g.status) && (
+                                <button className="outline" type="button" disabled={saving}
+                                  onClick={() => save({ action: 'guest-status', id: g.id, status: 'confirmado' })}>
+                                  Confirmar presença
+                                </button>
+                              )}
+                              {g.status !== 'presente' && can('guests:checkin') && (
                                 <button
                                   type="button"
                                   title="Fazer Check-in (Entrada) e Enviar Boas-Vindas ao Ecrã"
@@ -549,13 +576,14 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                                 >
                                   <UserCheck size={14} /> Entrada
                                 </button>
-                              ) : (
+                              )}
+                              {g.status === 'presente' && (
                                 <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, padding: '2px 6px' }}>
                                   ✓ No Salão
                                 </span>
                               )}
-                              <button title="Editar" onClick={() => setEdit({ ...g })}><Edit3 size={17} /></button>
-                              <button title="Eliminar" onClick={async () => { if (confirm('Eliminar este convidado?')) await save({ action: 'guest-delete', id: g.id }); }}><Trash2 size={17} /></button>
+                              {can('guests:edit') && <button title="Editar" onClick={() => setEdit({ ...g })}><Edit3 size={17} /></button>}
+                              {can('guests:delete') && <button title="Eliminar" onClick={async () => { if (confirm('Eliminar este convidado?')) await save({ action: 'guest-delete', id: g.id }); }}><Trash2 size={17} /></button>}
                             </div>
                           </td>
                         </tr>

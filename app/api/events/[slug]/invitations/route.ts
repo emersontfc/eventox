@@ -4,7 +4,7 @@ import { invitations } from '../../../../../db/schema';
 import { eq, and } from 'drizzle-orm';
 import crypto from 'node:crypto';
 import { getEventMembershipContext, logAuditAction } from '../../../../../lib/auth';
-import { hasPermission } from '../../../../../lib/permissions';
+import { hasPermission, ROLE_DEFINITIONS } from '../../../../../lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +50,10 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
     const email = body.email ? String(body.email).trim().toLowerCase() : null;
     const role = String(body.role || 'coorganizador');
+    if (role === 'proprietario' || !Object.hasOwn(ROLE_DEFINITIONS, role) ||
+        (authContext.role !== 'proprietario' && (role === 'coorganizador' || body.permissions?.length))) {
+      return NextResponse.json({ error: 'Sem permissão para atribuir esta função.' }, { status: 403 });
+    }
     const permissions = JSON.stringify(body.permissions || []);
     const validityDays = Math.min(30, Math.max(1, Number(body.validityDays) || 7));
 

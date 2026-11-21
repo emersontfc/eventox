@@ -117,7 +117,7 @@ export default function TeamManagement({ slug }: { slug: string }) {
       const data: any = await res.json();
       if (!res.ok) throw new Error(data.error || 'Falha ao gerar convite');
 
-      setGeneratedInviteUrl(data.inviteUrl);
+      setGeneratedInviteUrl(new URL(data.inviteUrl, window.location.origin).href);
       showSuccess('Convite gerado com sucesso!');
       loadTeamData();
     } catch (err: any) {
@@ -148,7 +148,7 @@ export default function TeamManagement({ slug }: { slug: string }) {
       const res = await fetch(`/api/events/${slug}/team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update-role', targetUserId, role: newRole }),
+        body: JSON.stringify({ action: 'update-role', userId: targetUserId, role: newRole }),
       });
       if (!res.ok) {
         const j: any = await res.json();
@@ -168,7 +168,7 @@ export default function TeamManagement({ slug }: { slug: string }) {
       const res = await fetch(`/api/events/${slug}/team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update-status', targetUserId, status: nextStatus }),
+        body: JSON.stringify({ action: 'update-status', userId: targetUserId, status: nextStatus }),
       });
       if (!res.ok) throw new Error('Falha ao alterar estado');
       showSuccess(`Membro ${nextStatus === 'bloqueado' ? 'bloqueado' : 'reativado'}.`);
@@ -182,10 +182,8 @@ export default function TeamManagement({ slug }: { slug: string }) {
   const handleRemoveMember = async (targetUserId: number, memberName: string) => {
     if (!confirm(`Remover "${memberName}" da equipa deste evento?`)) return;
     try {
-      const res = await fetch(`/api/events/${slug}/team`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'remove-member', targetUserId }),
+      const res = await fetch(`/api/events/${slug}/team?userId=${targetUserId}`, {
+        method: 'DELETE',
       });
       if (!res.ok) throw new Error('Falha ao remover membro');
       showSuccess('Membro removido da equipa.');

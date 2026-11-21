@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { isAdmin } from '../../admin-auth';
+import { getEventMembershipContext } from '../../../lib/auth';
+import { hasPermission } from '../../../lib/permissions';
 import { getDb } from '../../../db';
-import { menuItems, orders, playlist, guestTables, events } from '../../../db/schema';
+import { menuItems, orders, playlist, guestTables } from '../../../db/schema';
 import { and, eq, gte, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -15,23 +16,23 @@ function getSlug(request: Request) {
   return (url.searchParams.get('slug') || request.headers.get('x-event-slug') || 'emerson').toLowerCase().trim();
 }
 
-async function getEventId(db: ReturnType<typeof getDb>, slug: string) {
-  const [event] = await db.select({ id: events.id }).from(events).where(eq(events.slug, slug)).limit(1);
-  return event?.id || 1;
-}
-
 const VALID_CATEGORIES = ['entrada', 'prato_principal', 'sobremesa', 'lanche', 'bebida', 'comida', 'bar'];
 
 export async function GET(req: Request) {
   const slug = getSlug(req);
-  if (!await isAdmin(slug)) return fail('Acesso reservado ao administrador', 403);
+  const access = await getEventMembershipContext(slug);
+  if (!access) return fail('Acesso reservado à equipa', 403);
+  const can = (permission: string) => hasPermission(access.role, access.permissions, permission);
   try {
     const db = getDb();
-    const eventId = await getEventId(db, slug);
+    const eventId = access.event.id;
+    const hospitality = can('hospitality:view');
+    const music = can('playlist:view');
+    if (!hospitality && !music) return fail('Sem permissão para consultar o serviço.', 403);
     const [items, requests, songs] = await Promise.all([
-      db.select().from(menuItems).where(eq(menuItems.eventId, eventId)),
-      db.select().from(orders).where(eq(orders.eventId, eventId)),
-      db.select().from(playlist).where(eq(playlist.eventId, eventId)),
+      hospitality ? db.select().from(menuItems).where(eq(menuItems.eventId, eventId)) : [],
+      hospitality ? db.select().from(orders).where(eq(orders.eventId, eventId)) : [],
+      music ? db.select().from(playlist).where(eq(playlist.eventId, eventId)) : [],
     ]);
     return NextResponse.json({ items, orders: requests, songs });
   } catch {
@@ -41,14 +42,29 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const slug = getSlug(req);
-  if (!await isAdmin(slug)) return fail('Acesso reservado ao administrador', 403);
+  const access = await getEventMembershipContext(slug);
+  if (!access) return fail('Acesso reservado à equipa', 403);
+  const can = (permission: string) => hasPermission(access.role, access.permissions, permission);
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return fail('Pedido inválido'); }
 
   try {
     const db = getDb();
-    const eventId = await getEventId(db, slug);
+    const eventId = access.event.id;
     const action = clean(body.action, 40);
+    const permissions: Record<string, string> = {
+      'item-save': 'hospitality:menu:manage',
+      'item-delete': 'hospitality:menu:manage',
+      'template-gala-menu': 'hospitality:menu:manage',
+      'order-create': 'hospitality:order:create',
+      'order-status': 'hospitality:order:update',
+      'song-save': 'playlist:control',
+      'song-status': 'playlist:control',
+      'song-move': 'playlist:control',
+      'song-delete': 'playlist:control',
+    };
+    if (!Object.hasOwn(permissions, action)) return fail('Ação desconhecida.');
+    if (!can(permissions[action])) return fail('Sem permissão para esta ação.', 403);
 
     if (action === 'item-save') {
       const id = idOf(body.id), name = clean(body.name, 140);

@@ -324,7 +324,7 @@ export default function UserDashboardPage() {
                 {/* Action Buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: 'auto', paddingTop: '6px' }}>
                   <button
-                    onClick={() => router.push(`/${ev.slug}`)}
+                    onClick={() => router.push(`/${ev.slug}/organizar`)}
                     className="auth-submit-btn"
                     style={{ margin: 0, padding: '10px 12px', fontSize: '12px' }}
                   >
