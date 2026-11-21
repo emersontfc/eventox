@@ -70,7 +70,7 @@ export default function InviteAcceptPage() {
 
       setFeedback({ type: 'success', message: 'Convite aceite com sucesso! A redirecionar para o painel…' });
       setTimeout(() => {
-        router.push(`/${data.slug || details?.event?.slug || 'emerson'}`);
+        router.push(`/${data.slug || details?.event?.slug || 'emerson'}/organizar`);
       }, 1200);
     } catch (err) {
       setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Erro ao processar.' });

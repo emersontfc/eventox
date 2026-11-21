@@ -24,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: 'Evento não encontrado.' }, { status: 404 });
     }
 
-    const admin = await isEventAdmin(slug);
+    const admin = await isEventAdmin(slug, 'gallery:moderate');
 
     const query = db
       .select({

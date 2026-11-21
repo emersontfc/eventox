@@ -17,7 +17,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       return NextResponse.json({ error: 'Evento não encontrado.' }, { status: 404 });
     }
 
-    const isOwnerOrAdmin = await isEventAdmin(slug);
+    const isOwnerOrAdmin = await isEventAdmin(slug, 'gallery:moderate');
     const authContext = await getEventMembershipContext(slug);
     const canModerate = isOwnerOrAdmin || (authContext && hasPermission(authContext.role, authContext.permissions, 'gallery:moderate'));
 
@@ -102,7 +102,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     const { slug } = await context.params;
     const authContext = await getEventMembershipContext(slug);
 
-    const isOwnerOrAdmin = await isEventAdmin(slug);
+    const isOwnerOrAdmin = await isEventAdmin(slug, 'gallery:moderate');
     if (!isOwnerOrAdmin && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'gallery:moderate'))) {
       return NextResponse.json({ error: 'Permissão insuficiente para moderar o mural.' }, { status: 403 });
     }

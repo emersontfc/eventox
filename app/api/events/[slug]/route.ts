@@ -301,7 +301,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
     // 5. Update theme / template (Personalização de design da página)
     if (action === 'update-theme') {
-      const isOwnerOrAdmin = await isEventAdmin(slug);
+      const isOwnerOrAdmin = await isEventAdmin(slug, 'event:manage');
       if (!isOwnerOrAdmin) {
         return NextResponse.json({ error: 'Acesso restrito à organização do evento.' }, { status: 403 });
       }

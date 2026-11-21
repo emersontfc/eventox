@@ -132,7 +132,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
     // 3. Moderator / Operator moderation
     if (action === 'moderate' && body.id) {
-      const isOwnerOrAdmin = await isEventAdmin(slug);
+      const isOwnerOrAdmin = await isEventAdmin(slug, 'games:host');
       const authContext = await getEventMembershipContext(slug);
 
       if (!isOwnerOrAdmin && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'messages:moderate'))) {
@@ -163,7 +163,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
     // 4. Create Live Poll (Operator)
     if (action === 'create-poll' && body.pollTitle && Array.isArray(body.pollOptions)) {
-      const isOwnerOrAdmin = await isEventAdmin(slug);
+      const isOwnerOrAdmin = await isEventAdmin(slug, 'games:host');
       const authContext = await getEventMembershipContext(slug);
 
       if (!isOwnerOrAdmin && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'games:manage'))) {

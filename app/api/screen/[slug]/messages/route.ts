@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await context.params;
-    const isOwnerOrAdmin = await isEventAdmin(slug);
+    const isOwnerOrAdmin = await isEventAdmin(slug, 'event:manage');
     const authContext = await getEventMembershipContext(slug);
 
     const hasViewPerm =
@@ -60,7 +60,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await context.params;
-    const isOwnerOrAdmin = await isEventAdmin(slug);
+    const isOwnerOrAdmin = await isEventAdmin(slug, 'event:manage');
     const authContext = await getEventMembershipContext(slug);
 
     const db = getDb();
@@ -182,6 +182,9 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
     // 4. Trigger Arrival Welcome for guest
     if (body.action === 'trigger-welcome' && body.guestId) {
+      if (!isOperator && (!authContext || !hasPermission(authContext.role, authContext.permissions, 'screen:arrivals'))) {
+        return NextResponse.json({ error: 'Sem permissão para enviar boas-vindas.' }, { status: 403 });
+      }
       const [guest] = await db
         .select()
         .from(guests)

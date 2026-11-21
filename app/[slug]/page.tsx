@@ -1,13 +1,14 @@
 import { getDb } from '../../db';
 import { events } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { isEventAdmin } from '../../lib/auth';
+import { hasPermission } from '../../lib/permissions';
+import { getEventMembershipContext } from '../../lib/auth';
 import EventClientView from './EventClientView';
 import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EventPage(props: { params: Promise<{ slug: string }> }) {
+export default async function EventPage(props: { params: Promise<{ slug: string }>; searchParams: Promise<{ organizar?: string }> }) {
   const { slug } = await props.params;
   const db = getDb();
   const [event] = await db.select().from(events).where(eq(events.slug, slug)).limit(1);
@@ -16,7 +17,8 @@ export default async function EventPage(props: { params: Promise<{ slug: string 
     notFound();
   }
 
-  const admin = await isEventAdmin(slug);
+  const access = await getEventMembershipContext(slug);
+  const { organizar } = await props.searchParams;
 
   return (
     <EventClientView
@@ -32,7 +34,9 @@ export default async function EventPage(props: { params: Promise<{ slug: string 
         photoAlbumUrl: event.photoAlbumUrl || '',
         createdAt: event.createdAt,
       }}
-      initialAdmin={admin}
+      initialAdmin={Boolean(access)}
+      canChangeTheme={Boolean(access && hasPermission(access.role, access.permissions, 'event:manage'))}
+      openAccess={!access && organizar === '1'}
     />
   );
 }

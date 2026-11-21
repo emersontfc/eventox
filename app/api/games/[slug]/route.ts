@@ -94,7 +94,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await context.params;
-    const isOwnerOrAdmin = await isEventAdmin(slug);
+    const isOwnerOrAdmin = await isEventAdmin(slug, 'games:manage');
     const authContext = await getEventMembershipContext(slug);
 
     const isAuthorized =

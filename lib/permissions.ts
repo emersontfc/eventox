@@ -56,6 +56,7 @@ export const ROLE_DEFINITIONS: Record<EventRole, RoleDefinition> = {
       'guests:create',
       'guests:edit',
       'guests:checkin',
+      'guests:rsvp',
       'tables:view',
       'screen:arrivals',
       'screen:messages:create',
@@ -71,6 +72,7 @@ export const ROLE_DEFINITIONS: Record<EventRole, RoleDefinition> = {
       'hospitality:order:create',
       'hospitality:order:update',
       'hospitality:stock:update',
+      'hospitality:menu:manage',
       'tables:view',
     ],
   },
@@ -129,9 +131,9 @@ export const ROLE_DEFINITIONS: Record<EventRole, RoleDefinition> = {
 };
 
 export const MODULE_ACTIONS = [
-  { module: 'guests', label: 'Convidados & RSVP', actions: ['view', 'create', 'edit', 'delete', 'checkin'] },
+  { module: 'guests', label: 'Convidados & RSVP', actions: ['view', 'create', 'edit', 'delete', 'checkin', 'rsvp'] },
   { module: 'tables', label: 'Mesas & Lugares', actions: ['view', 'create', 'edit', 'delete'] },
-  { module: 'hospitality', label: 'Bar & Catering', actions: ['view', 'order', 'stock'] },
+  { module: 'hospitality', label: 'Bar & Catering', actions: ['view', 'order', 'stock', 'menu:manage'] },
   { module: 'screen', label: 'Modo Ecrã / Eventox Live', actions: ['view', 'control', 'design', 'messages', 'scenes'] },
   { module: 'games', label: 'Jogos & Quiz Live', actions: ['manage', 'host'] },
   { module: 'playlist', label: 'Playlist & Som', actions: ['view', 'control'] },
@@ -173,7 +175,7 @@ export function hasPermission(
     if (perm === '*') return true;
     if (perm.endsWith(':*')) {
       const prefix = perm.slice(0, -2);
-      if (requiredPermission.startsWith(prefix)) return true;
+      if (requiredPermission.startsWith(`${prefix}:`) || requiredPermission === prefix) return true;
     }
     // If requirement is a broader module/submodule like 'screen:messages' and user has 'screen:messages:moderate'
     if (perm.startsWith(`${requiredPermission}:`)) return true;

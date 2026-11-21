@@ -112,7 +112,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     const { slug } = await context.params;
     const authContext = await getEventMembershipContext(slug);
 
-    if (!authContext || !hasPermission(authContext.role, authContext.permissions, 'team:manage')) {
+    if (!authContext || authContext.role !== 'proprietario') {
       return NextResponse.json({ error: 'Permissão insuficiente para alterar membros.' }, { status: 403 });
     }
 
@@ -129,6 +129,9 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     const eventId = authContext.event.id;
 
     if (body.action === 'update-role' && body.userId && body.role) {
+      if (body.role === 'proprietario' || !Object.hasOwn(ROLE_DEFINITIONS, body.role)) {
+        return NextResponse.json({ error: 'Função inválida.' }, { status: 400 });
+      }
       // Cannot change owner role unless user is global admin
       if (body.userId === authContext.event.ownerId && authContext.user.globalRole !== 'admin') {
         return NextResponse.json({ error: 'Não é possível alterar o cargo do proprietário do evento.' }, { status: 400 });
@@ -153,6 +156,9 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     }
 
     if (body.action === 'update-status' && body.userId && body.status) {
+      if (!['ativo', 'suspenso', 'bloqueado'].includes(body.status)) {
+        return NextResponse.json({ error: 'Estado inválido.' }, { status: 400 });
+      }
       if (body.userId === authContext.event.ownerId) {
         return NextResponse.json({ error: 'Não é possível suspender o proprietário.' }, { status: 400 });
       }
@@ -199,7 +205,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ slug
     const { slug } = await context.params;
     const authContext = await getEventMembershipContext(slug);
 
-    if (!authContext || !hasPermission(authContext.role, authContext.permissions, 'team:manage')) {
+    if (!authContext || authContext.role !== 'proprietario') {
       return NextResponse.json({ error: 'Permissão insuficiente para remover membros.' }, { status: 403 });
     }
 

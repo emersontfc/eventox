@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import Countdown from '../../components/Countdown';
-import AdminDashboard from '../AdminDashboard';
 import AuthModal from '../../components/AuthModal';
 import Confetti from '../../components/Confetti';
 import EmbeddedMusicPlayer, { PlayingSong } from '../../components/EmbeddedMusicPlayer';
@@ -71,12 +70,15 @@ interface MenuItemDisplay {
 export default function EventClientView({
   event,
   initialAdmin = false,
+  openAccess = false,
+  canChangeTheme = false,
 }: {
   event: EventData;
   initialAdmin: boolean;
+  openAccess: boolean;
+  canChangeTheme: boolean;
 }) {
-  const [isAdmin, setIsAdmin] = useState(initialAdmin);
-  const [viewMode, setViewMode] = useState<'guest' | 'admin'>(initialAdmin ? 'admin' : 'guest');
+  const isAdmin = initialAdmin;
   const [activeTab, setActiveTab] = useState<'seating' | 'music' | 'schedule' | 'menu' | 'mural' | 'gallery' | 'info'>('seating');
   const [showConfetti, setShowConfetti] = useState(false);
 
@@ -106,7 +108,7 @@ export default function EventClientView({
   const [ticketQrUrl, setTicketQrUrl] = useState<string>('');
 
   // Auth modal state
-  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(openAccess);
 
   // Music & Playlist state
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
@@ -386,24 +388,6 @@ export default function EventClientView({
     }
   };
 
-  // Admin Switcher View
-  if (isAdmin && viewMode === 'admin') {
-    return (
-      <AdminDashboard
-        slug={event.slug}
-        onPreview={() => {
-          setActiveTab('seating');
-          setViewMode('guest');
-          window.scrollTo(0, 0);
-        }}
-        onExit={() => {
-          setIsAdmin(false);
-          setViewMode('guest');
-        }}
-      />
-    );
-  }
-
   return (
     <div className={`event-portal-page ${theme.bodyClass || 'theme-gala-gold'}`}>
       <Confetti active={showConfetti} onFinish={() => setShowConfetti(false)} />
@@ -417,7 +401,7 @@ export default function EventClientView({
         <div className="portal-nav-actions">
           {isAdmin ? (
             <div className="flex items-center gap-2">
-              <button
+              {canChangeTheme && <button
                 type="button"
                 className="outline-pill"
                 onClick={() => setShowThemeModal(true)}
@@ -425,10 +409,10 @@ export default function EventClientView({
                 title="Mudar Template & Identidade Visual do Evento"
               >
                 <Palette size={15} /> Escolher Template
-              </button>
-              <button className="primary-pill" onClick={() => setViewMode('admin')}>
+              </button>}
+              <a className="primary-pill" href={`/${event.slug}/organizar`}>
                 <Shield size={16} /> Voltar ao painel
-              </button>
+              </a>
             </div>
           ) : (
             <button className="outline-pill" onClick={() => setAuthModalOpen(true)}>
@@ -1472,8 +1456,7 @@ export default function EventClientView({
         defaultMode="login"
         currentSlug={event.slug}
         onLoginSuccess={() => {
-          setIsAdmin(true);
-          setViewMode('admin');
+          window.location.assign(`/${event.slug}/organizar`);
         }}
       />
     </div>
