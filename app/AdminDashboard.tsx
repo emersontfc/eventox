@@ -14,6 +14,7 @@ import Hospitality from './Hospitality';
 import GuestImport from './GuestImport';
 import Committee from './Committee';
 import Gallery from './Gallery';
+import ReceptionDesk from './ReceptionDesk';
 import EventProgramEditor from './EventProgramEditor';
 import EventModeration from './EventModeration';
 import TeamManagement from '../components/TeamManagement';
@@ -84,6 +85,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const [tab, setTab] = useState(() => can('event:manage')
     ? 'overview'
     : role === 'recepcao' ? 'reception' : Object.keys(sectionPermissions).find(section => can(sectionPermissions[section])) || 'overview');
+  const [programDirty, setProgramDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -93,9 +95,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const [tableModal, setTableModal] = useState<{ id: number; name: string; capacity: number } | null>(null);
   const [prefs, setPrefs] = useState(initial.settings);
   const [query, setQuery] = useState('');
-  const [receptionQuery, setReceptionQuery] = useState('');
   const [orderFilter, setOrderFilter] = useState('ativos');
-  const [receptionNotice, setReceptionNotice] = useState('');
   const [tableFilter, setTableFilter] = useState(0);
   const [statusFilter, setStatusFilter] = useState('todos');
   const [importOpen, setImportOpen] = useState(false);
@@ -169,7 +169,6 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const handleCheckIn = async (guest: Guest) => {
     const success = await save({ action: 'guest-status', id: guest.id, status: 'presente' });
     if (success) {
-      setReceptionNotice(`Entrada registada para ${guest.name}.`);
       try {
         await fetch(`/api/screen/${slug}/messages`, {
           method: 'POST',
@@ -178,9 +177,11 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
         });
       } catch {}
     }
+    return success;
   };
 
   const handleLogout = async () => {
+    if (programDirty && !window.confirm('Sair sem guardar as alterações do programa?')) return;
     try {
       await Promise.all([
         fetch('/api/auth/logout', {
@@ -245,6 +246,10 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const yes = data.guests.filter(g => ['confirmado', 'presente'].includes(g.status)).length;
   const pending = data.guests.filter(g => g.status === 'pendente').length;
   const go = (name: string) => {
+    if (tab === 'program' && name !== tab && programDirty) {
+      if (!window.confirm('Sair sem guardar as alterações do programa?')) return;
+      setProgramDirty(false);
+    }
     if (name !== 'orders') setOrderFilter('ativos');
     if (name === 'overview' || can(sectionPermissions[name])) setTab(name);
     setMenu(false);
@@ -432,36 +437,10 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
             </div>
           )}
 
-          {tab === 'program' && <EventProgramEditor slug={slug} />}
+          {tab === 'program' && <EventProgramEditor slug={slug} onDirtyChange={setProgramDirty} />}
           {tab === 'moderation' && <EventModeration slug={slug} />}
           {tab === 'reception' && (
-            <section>
-              <div className="page-head"><h1>Receção</h1></div>
-              <label className="field reception-search">Nome do convidado
-                <input autoFocus type="search" value={receptionQuery} placeholder="Pesquisar pelo nome"
-                  onChange={event => { setReceptionQuery(event.target.value); setReceptionNotice(''); }} />
-              </label>
-              {receptionNotice && <p role="status">{receptionNotice}</p>}
-              {receptionQuery.trim() && (() => {
-                const matches = data.guests.filter(guest => guest.name.toLocaleLowerCase()
-                  .includes(receptionQuery.trim().toLocaleLowerCase()));
-                return matches.length ? (
-                  <ul className="organizer-list">
-                    {matches.map(guest => (
-                      <li key={guest.id} className="reception-result">
-                        <div>
-                          <strong>{guest.name}</strong>
-                          <p>{data.tables.find(table => table.id === guest.tableId)?.name || `Mesa ${guest.tableId}`} · Lugar {guest.seat}</p>
-                          <p>{guest.status === 'presente' ? 'Entrada já registada' : statuses[guest.status]}</p>
-                        </div>
-                        {guest.status !== 'presente' &&
-                          <button className="primary" disabled={saving} onClick={() => handleCheckIn(guest)}>Registar entrada</button>}
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p>Nenhum convidado encontrado.</p>;
-              })()}
-            </section>
+            <ReceptionDesk guests={data.guests} tables={data.tables} loading={loading} onCheckIn={handleCheckIn} />
           )}
 
           {tab === 'overview' && (

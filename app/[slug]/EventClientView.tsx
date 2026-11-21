@@ -1,4 +1,5 @@
 'use client';
+import ProgramTimeline from '../../components/ProgramTimeline';
 import type { ProgramItem } from '../../lib/event-program';
 
 import React, { useState, useEffect } from 'react';
@@ -980,16 +981,7 @@ export default function EventClientView({
             <p>Conhece os principais momentos planeados para esta grande celebração.</p>
           </div>
 
-          {program.length ? (
-            <div className="timeline-list">
-              {program.map((item, index) => (
-                <div className="timeline-card" key={index}>
-                  <span className="timeline-time-badge">{item.time}</span>
-                  <div className="timeline-info"><h3>{item.title}</h3><p>{item.description}</p></div>
-                </div>
-              ))}
-            </div>
-          ) : <p className="text-center">O programa será publicado em breve.</p>}
+          <ProgramTimeline items={program} />
         </section>
       )}
 
