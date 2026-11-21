@@ -29,7 +29,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
           ? eq(guestbookMessages.eventId, event.id)
           : and(eq(guestbookMessages.eventId, event.id), eq(guestbookMessages.status, 'aprovado'))
       )
-      .orderBy(desc(guestbookMessages.id))
+      .orderBy(desc(guestbookMessages.featured), desc(guestbookMessages.id))
       .limit(60);
 
     const rows = await query;
@@ -129,6 +129,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
       .update(guestbookMessages)
       .set({
         status: body.status,
+        ...(body.status !== 'aprovado' ? { featured: false } : {}),
         approvedBy: userId,
       })
       .where(and(eq(guestbookMessages.id, body.messageId), eq(guestbookMessages.eventId, eventId)));

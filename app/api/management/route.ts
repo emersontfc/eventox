@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../db';
-import { events, guestTables, guests, settings } from '../../../db/schema';
-import { eq, and, ne } from 'drizzle-orm';
+import { events, guestTables, guests, orders, settings } from '../../../db/schema';
+import { eq, and, ne, count, notLike } from 'drizzle-orm';
 import { hasPermission } from '../../../lib/permissions';
 import { planGuestImport } from '../../../lib/guest-import';
 import { hashPasscode, getEventMembershipContext } from '../../../lib/auth';
@@ -23,11 +23,13 @@ export async function GET(request: Request) {
     const db = getDb();
     const event = access.event;
     const eventId = event.id;
-    const [tables, people, prefs] = await Promise.all([
+    const [tables, people, prefs, orderSummary] = await Promise.all([
       can('tables:view') || can('guests:view') || can('hospitality:view')
         ? db.select().from(guestTables).where(eq(guestTables.eventId, eventId)) : [],
       can('guests:view') ? db.select().from(guests).where(eq(guests.eventId, eventId)) : [],
-      can('event:manage') ? db.select().from(settings) : [],
+      can('event:manage') ? db.select().from(settings).where(notLike(settings.key, 'event-program:%')) : [],
+      can('hospitality:view') ? db.select({ total: count() }).from(orders)
+        .where(and(eq(orders.eventId, eventId), eq(orders.status, 'pendente'))) : [],
     ]);
 
     const settingsObj = Object.fromEntries(prefs.map((x: any) => [x.key, x.value]));
@@ -45,6 +47,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       tables,
       guests: people,
+      pendingOrders: orderSummary[0]?.total ?? 0,
       settings: settingsObj,
       event: event ? {
         id: event.id,
@@ -153,9 +156,11 @@ export async function POST(request: Request) {
         throw new Error('Convidado ou estado inválido.');
       }
       const [updated] = await db.update(guests).set({ status })
-        .where(and(eq(guests.id, id), eq(guests.eventId, eventId), status === 'confirmado' ? ne(guests.status, 'presente') : undefined))
+        .where(and(eq(guests.id, id), eq(guests.eventId, eventId), ne(guests.status, 'presente')))
         .returning({ id: guests.id });
-      if (!updated) return NextResponse.json({ error: 'Convidado indisponível para esta alteração.' }, { status: 409 });
+      if (!updated) {
+        return NextResponse.json({ error: 'A entrada já foi registada ou o convidado deixou de estar disponível.' }, { status: 409 });
+      }
     } else if (action === 'guest-delete') {
       const id = Number(body.id);
       if (!Number.isInteger(id) || id < 1) throw new Error('Convidado inválido.');

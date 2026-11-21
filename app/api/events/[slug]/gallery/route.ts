@@ -44,7 +44,7 @@ export async function GET(
           ? eq(galleryMedia.eventId, event.id)
           : and(eq(galleryMedia.eventId, event.id), eq(galleryMedia.status, 'aprovado'))
       )
-      .orderBy(desc(galleryMedia.id))
+      .orderBy(desc(galleryMedia.featured), desc(galleryMedia.id))
       .limit(60);
 
     const items = await query;
@@ -149,7 +149,7 @@ export async function POST(
       originalName: file.name.slice(0, 160),
       uploader,
       album,
-      status: 'aprovado', // Auto-approved for live celebration experience
+      status: 'pendente',
       createdAt: new Date().toISOString(),
     }).returning();
 

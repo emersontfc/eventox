@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { hasPermission } from '../../lib/permissions';
 import { getEventMembershipContext } from '../../lib/auth';
 import EventClientView from './EventClientView';
+import { readProgram } from '../../lib/event-program-server';
 import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,7 @@ export default async function EventPage(props: { params: Promise<{ slug: string 
       }}
       initialAdmin={Boolean(access)}
       canChangeTheme={Boolean(access && hasPermission(access.role, access.permissions, 'event:manage'))}
+      program={(await readProgram(event.id, event.slug)).published}
       openAccess={!access && organizar === '1'}
     />
   );

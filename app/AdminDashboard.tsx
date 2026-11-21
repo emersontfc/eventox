@@ -14,7 +14,8 @@ import Hospitality from './Hospitality';
 import GuestImport from './GuestImport';
 import Committee from './Committee';
 import Gallery from './Gallery';
-import Countdown from '../components/Countdown';
+import EventProgramEditor from './EventProgramEditor';
+import EventModeration from './EventModeration';
 import TeamManagement from '../components/TeamManagement';
 import ScreenLiveDashboard from '../components/ScreenLiveDashboard';
 import LiveStudioDashboard from '../components/LiveStudioDashboard';
@@ -24,6 +25,7 @@ type Table = { id: number; name: string; capacity: number };
 type Guest = { id: number; name: string; phone: string; tableId: number; seat: number; status: string; notes: string };
 type Data = {
   tables: Table[];
+  pendingOrders?: number;
   guests: Guest[];
   settings: Record<string, string>;
   event?: {
@@ -61,6 +63,9 @@ const blank: Guest = { id: 0, name: '', phone: '', tableId: 1, seat: 1, status: 
 
 const sectionPermissions: Record<string, string> = {
   guests: 'guests:view',
+  reception: 'guests:checkin',
+  program: 'event:manage',
+  moderation: 'gallery:moderate',
   tables: 'tables:view',
   studio: 'screen:control',
   screen: 'screen:control',
@@ -78,7 +83,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const [data, setData] = useState<Data>(initial);
   const [tab, setTab] = useState(() => can('event:manage')
     ? 'overview'
-    : Object.keys(sectionPermissions).find(section => can(sectionPermissions[section])) || 'overview');
+    : role === 'recepcao' ? 'reception' : Object.keys(sectionPermissions).find(section => can(sectionPermissions[section])) || 'overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -88,6 +93,9 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const [tableModal, setTableModal] = useState<{ id: number; name: string; capacity: number } | null>(null);
   const [prefs, setPrefs] = useState(initial.settings);
   const [query, setQuery] = useState('');
+  const [receptionQuery, setReceptionQuery] = useState('');
+  const [orderFilter, setOrderFilter] = useState('ativos');
+  const [receptionNotice, setReceptionNotice] = useState('');
   const [tableFilter, setTableFilter] = useState(0);
   const [statusFilter, setStatusFilter] = useState('todos');
   const [importOpen, setImportOpen] = useState(false);
@@ -107,11 +115,14 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
     }
   }, [slug]);
 
-  const copyLink = () => {
-    if (publicUrl && typeof navigator !== 'undefined') {
-      navigator.clipboard.writeText(publicUrl);
+  const copyLink = async () => {
+    if (!publicUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setError('Não foi possível copiar o link público.');
     }
   };
 
@@ -147,6 +158,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
       await load();
       return true;
     } catch (e) {
+      await load();
       setError(e instanceof Error ? e.message : 'Erro ao guardar');
       return false;
     } finally {
@@ -157,6 +169,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const handleCheckIn = async (guest: Guest) => {
     const success = await save({ action: 'guest-status', id: guest.id, status: 'presente' });
     if (success) {
+      setReceptionNotice(`Entrada registada para ${guest.name}.`);
       try {
         await fetch(`/api/screen/${slug}/messages`, {
           method: 'POST',
@@ -232,6 +245,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const yes = data.guests.filter(g => ['confirmado', 'presente'].includes(g.status)).length;
   const pending = data.guests.filter(g => g.status === 'pendente').length;
   const go = (name: string) => {
+    if (name !== 'orders') setOrderFilter('ativos');
     if (name === 'overview' || can(sectionPermissions[name])) setTab(name);
     setMenu(false);
   };
@@ -275,6 +289,9 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
           {[
             ['overview', LayoutDashboard, 'Visão geral'],
             ['guests', Users, 'Convidados'],
+            ['reception', UserCheck, 'Receção'],
+            ['program', CalendarDays, 'Programa'],
+            ['moderation', Camera, 'Galeria e mural'],
             ['tables', UtensilsCrossed, 'Mesas & lugares'],
             ['studio', MonitorPlay, 'Estúdio Live'],
             ['templates', Palette, 'Templates & Estilo'],
@@ -307,6 +324,9 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
             <span>{{
               overview: 'Visão geral',
               guests: 'Convidados',
+              reception: 'Receção',
+              program: 'Programa',
+              moderation: 'Galeria e mural',
               tables: 'Mesas & lugares',
               menu: 'Cardápio & Bar',
               orders: 'Pedidos',
@@ -368,7 +388,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
           {loading && <div className="loading">A carregar os dados do evento…</div>}
 
           {(['menu', 'orders', 'playlist'].includes(tab)) && (
-            <Hospitality key={tab} mode={tab as 'menu' | 'orders' | 'playlist'} tables={data.tables} slug={slug} />
+            <Hospitality key={`${tab}:${orderFilter}`} initialOrderFilter={orderFilter} mode={tab as 'menu' | 'orders' | 'playlist'} tables={data.tables} slug={slug} />
           )}
 
           {tab === 'committee' && <Committee slug={slug} />}
@@ -412,60 +432,72 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
             </div>
           )}
 
+          {tab === 'program' && <EventProgramEditor slug={slug} />}
+          {tab === 'moderation' && <EventModeration slug={slug} />}
+          {tab === 'reception' && (
+            <section>
+              <div className="page-head"><h1>Receção</h1></div>
+              <label className="field reception-search">Nome do convidado
+                <input autoFocus type="search" value={receptionQuery} placeholder="Pesquisar pelo nome"
+                  onChange={event => { setReceptionQuery(event.target.value); setReceptionNotice(''); }} />
+              </label>
+              {receptionNotice && <p role="status">{receptionNotice}</p>}
+              {receptionQuery.trim() && (() => {
+                const matches = data.guests.filter(guest => guest.name.toLocaleLowerCase()
+                  .includes(receptionQuery.trim().toLocaleLowerCase()));
+                return matches.length ? (
+                  <ul className="organizer-list">
+                    {matches.map(guest => (
+                      <li key={guest.id} className="reception-result">
+                        <div>
+                          <strong>{guest.name}</strong>
+                          <p>{data.tables.find(table => table.id === guest.tableId)?.name || `Mesa ${guest.tableId}`} · Lugar {guest.seat}</p>
+                          <p>{guest.status === 'presente' ? 'Entrada já registada' : statuses[guest.status]}</p>
+                        </div>
+                        {guest.status !== 'presente' &&
+                          <button className="primary" disabled={saving} onClick={() => handleCheckIn(guest)}>Registar entrada</button>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p>Nenhum convidado encontrado.</p>;
+              })()}
+            </section>
+          )}
+
           {tab === 'overview' && (
             <>
-              <div className="hero">
-                <div className="hero-copy">
-                  <span className="eyebrow">✦ GESTÃO & CELEBRAÇÃO</span>
-                  <p>Organização completa e controlo do evento em tempo real.</p>
-                  <h1>{data.settings.eventName}<span>.</span></h1>
-                  <p className="hero-description">
-                    {data.event?.description || 'Celebração com as pessoas que fazem parte desta grande história.'}
-                  </p>
-                  <div className="hero-meta">
-                    <span>
-                      <CalendarDays size={17} />
-                      {new Date((data.settings.eventDate || '2026-12-11T14:00') + ':00+02:00').toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Maputo' })}
-                    </span>
-                    <span>
-                      <MapPin size={17} />
-                      {data.settings.venue || 'Local a definir'}
-                    </span>
-                  </div>
-                </div>
-                <div className="hero-ornament">✺</div>
-              </div>
-
-              <section className="count-card">
-                <span className="overline"><Clock3 size={16} /> CONTAGEM REGRESSIVA PARA O GRANDE DIA</span>
-                <Countdown date={data.settings.eventDate} />
-                <p>Cada segundo aproxima-nos de um momento inesquecível ✦</p>
-              </section>
-
-              <div className="section-head">
+              <div className="page-head organizer-overview-head">
                 <div>
-                  <span className="overline">O EVENTO EM NÚMEROS</span>
-                  <h2>Panorama da celebração</h2>
+                  <h1>{data.settings.eventName}</h1>
+                  <p>{data.settings.venue}</p>
                 </div>
-                <button onClick={() => go('guests')}>Ver convidados →</button>
+                <button type="button" className="outline" disabled={!publicUrl} onClick={copyLink}>
+                  <Copy size={16} /> {copied ? 'Link copiado' : 'Copiar link público'}
+                </button>
               </div>
 
-              <div className="metrics">
-                {([
-                  ['Convidados registados', data.guests.length, 'lugares distribuídos', Users],
-                  ['Presenças confirmadas', yes, 'inclui chegadas registadas', Check],
-                  ['Aguardam resposta', pending, 'convites por confirmar', Clock3],
-                  ['Mesas configuradas', data.tables.length, 'distribuição espacial', UtensilsCrossed],
-                ] as [string, number, string, LucideIcon][]).map(([label, value, desc, Icon], i) => (
-                  <div className="metric" key={i}>
-                    <div className={'metric-icon color-' + i}><Icon size={22} /></div>
-                    <span>{label as string}</span>
-                    <strong>{String(value).padStart(2, '0')}</strong>
-                    <small>{desc as string}</small>
-                  </div>
-                ))}
+              <div className="metrics organizer-metrics">
+                {can('guests:view') && (<>
+                  <button className="metric" onClick={() => { setQuery(''); setTableFilter(0); setStatusFilter('pendente'); go('guests'); }}>
+                    <span>Presenças por confirmar</span><strong>{loading ? '…' : pending}</strong>
+                  </button>
+                  <button className="metric" onClick={() => { setQuery(''); setTableFilter(0); setStatusFilter('presente'); go('guests'); }}>
+                    <span>Chegadas registadas</span><strong>{loading ? '…' : data.guests.filter(g => g.status === 'presente').length}</strong>
+                  </button>
+                </>)}
+                {can('tables:view') && can('guests:view') && (
+                  <button className="metric" onClick={() => go('tables')}>
+                    <span>Lugares livres</span><strong>{loading ? '…' : data.tables.reduce((total, table) => total + free(table.id).length, 0)}</strong>
+                  </button>
+                )}
+                {can('hospitality:view') && (
+                  <button className="metric" onClick={() => { setOrderFilter('pendente'); go('orders'); }}>
+                    <span>Pedidos pendentes</span><strong>{loading ? '…' : data.pendingOrders ?? 0}</strong>
+                  </button>
+                )}
               </div>
 
+              {can('tables:view') && can('guests:view') && (<>
               <div className="section-head">
                 <div>
                   <span className="overline">DISTRIBUIÇÃO DOS CONVIDADOS</span>
@@ -479,7 +511,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
                   const count = occupied(t.id).length;
                   const isHonra = t.name.toLowerCase().includes('honra');
                   return (
-                    <button className={`table-summary ${isHonra ? 'table-summary-honra' : ''}`} key={t.id} onClick={() => { setTableFilter(t.id); go('guests'); }}>
+                    <button className={`table-summary ${isHonra ? 'table-summary-honra' : ''}`} key={t.id} onClick={() => { setQuery(''); setStatusFilter('todos'); setTableFilter(t.id); go('guests'); }}>
                       <span className="table-number">{isHonra ? '👑' : String(t.id).padStart(2, '0')}</span>
                       <div>
                         <strong style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -494,6 +526,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
                   );
                 })}
               </div>
+              </>)}
             </>
           )}
 
@@ -687,7 +720,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
                         <span><i /> Disponível</span>
                       </div>
                       <div className="bar"><i style={{ width: Math.min(100, (people.length / t.capacity) * 100) + '%' }} /></div>
-                      <button className="text-link" onClick={() => { setTableFilter(t.id); go('guests'); }}>Ver lista da mesa →</button>
+                      <button className="text-link" onClick={() => { setQuery(''); setStatusFilter('todos'); setTableFilter(t.id); go('guests'); }}>Ver lista da mesa →</button>
                     </div>
                   );
                 })}

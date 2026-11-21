@@ -50,7 +50,7 @@ export default function EventGallerySection({
       const res = await fetch(`/api/events/${encodeURIComponent(slug)}/gallery`, { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json() as { photos?: GalleryPhoto[] };
-      if (data.photos) setPhotos(data.photos);
+      if (data.photos) setPhotos(data.photos.filter(photo => photo.status === 'aprovado'));
     } catch {
       // Non-blocking
     } finally {
@@ -106,8 +106,7 @@ export default function EventGallerySection({
         throw new Error(data.error || 'Erro ao carregar fotografia.');
       }
 
-      setPhotos((prev) => [data.photo!, ...prev]);
-      setUploadSuccess('✦ Fotografia adicionada com sucesso ao mural oficial!');
+      setUploadSuccess('Ficheiro enviado. Ficará na galeria após aprovação da equipa.');
       setUploadFile(null);
       setUploadPreview(null);
       onPhotoUploaded?.();

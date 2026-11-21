@@ -51,7 +51,21 @@ interface RoleDef {
   label: string;
   description: string;
   badgeColor: string;
+  defaultPermissions: string[];
 }
+
+const permissionExamples: Record<string, string> = {
+  'event:manage': 'Editar o evento e publicar o programa',
+  'team:invite': 'Convidar membros para a equipa',
+  'guests:view': 'Consultar a lista de convidados',
+  'guests:rsvp': 'Confirmar presença',
+  'guests:checkin': 'Registar entradas',
+  'hospitality:menu:manage': 'Editar o cardápio',
+  'hospitality:order:create': 'Registar pedidos',
+  'playlist:control': 'Adicionar músicas e gerir a playlist',
+  'gallery:moderate': 'Moderar fotos e mensagens',
+  'committee:tasks:update': 'Atualizar tarefas da comissão',
+};
 
 export default function TeamManagement({ slug }: { slug: string }) {
   const [members, setMembers] = useState<Member[]>([]);
@@ -394,12 +408,12 @@ export default function TeamManagement({ slug }: { slug: string }) {
       {/* TAB 2: INVITATIONS */}
       {subTab === 'invitations' && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-base font-bold text-slate-900 mb-4">Convites Gerados</h3>
+          <h3 className="text-base font-bold text-slate-900 mb-4">Convites da equipa</h3>
           {invitations.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhum convite pendente.</p>
           ) : (
             <div className="space-y-3">
-              {invitations.map((inv) => (
+              {[...invitations].sort((a, b) => Number(b.status === 'pendente') - Number(a.status === 'pendente')).map((inv) => (
                 <div
                   key={inv.id}
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 p-4 bg-slate-50/50"
@@ -414,17 +428,22 @@ export default function TeamManagement({ slug }: { slug: string }) {
                         Expira em {new Date(inv.expiresAt).toLocaleDateString('pt-PT')}
                       </span>
                     </div>
-                    <code className="text-xs text-slate-500 mt-1 block">
-                      Token: {inv.token.slice(0, 16)}...
-                    </code>
+                    <span className={inv.status === 'pendente' ? 'font-semibold text-amber-800' : 'text-slate-600'}>
+                      {inv.status === 'pendente' && new Date(inv.expiresAt) < new Date() ? 'Expirado' :
+                        inv.status === 'pendente' ? 'A aguardar aceitação' : inv.status}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        const url = `${window.location.origin}/invite/${inv.token}`;
-                        navigator.clipboard.writeText(url);
-                        showSuccess('Link de convite copiado!');
+                      disabled={inv.status !== 'pendente' || new Date(inv.expiresAt) < new Date()}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(`${window.location.origin}/invite/${inv.token}`);
+                          showSuccess('Link de convite copiado!');
+                        } catch {
+                          setError('Não foi possível copiar o link.');
+                        }
                       }}
                       className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm"
                     >
@@ -543,6 +562,19 @@ export default function TeamManagement({ slug }: { slug: string }) {
                       ))}
                   </select>
                 </div>
+
+                {roles.filter(role => role.id === inviteRole).map(role => (
+                  <div key={role.id} className="rounded-xl bg-slate-50 p-3 text-sm" aria-live="polite">
+                    <strong>O que esta função pode fazer</strong>
+                    <p>{role.description}</p>
+                    <ul className="list-disc pl-5">
+                      {Object.entries(permissionExamples)
+                        .filter(([key]) => role.defaultPermissions.some(permission => permission === key ||
+                          (permission.endsWith(':*') && key.startsWith(permission.slice(0, -1)))))
+                        .map(([key, label]) => <li key={key}>{label}</li>)}
+                    </ul>
+                  </div>
+                ))}
 
                 <div className="flex justify-end gap-3 pt-2">
                   <button

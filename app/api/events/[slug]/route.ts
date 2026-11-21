@@ -45,13 +45,13 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     // Get approved guestbook messages for live guestbook section
     const guestbook = await db.select().from(guestbookMessages)
       .where(and(eq(guestbookMessages.eventId, event.id), eq(guestbookMessages.status, 'aprovado')))
-      .orderBy(desc(guestbookMessages.id))
+      .orderBy(desc(guestbookMessages.featured), desc(guestbookMessages.id))
       .limit(20);
 
     // Get approved media highlights
     const media = await db.select().from(galleryMedia).where(
       and(eq(galleryMedia.eventId, event.id), eq(galleryMedia.status, 'aprovado'))
-    ).orderBy(desc(galleryMedia.id)).limit(12);
+    ).orderBy(desc(galleryMedia.featured), desc(galleryMedia.id)).limit(12);
 
     return NextResponse.json({
       event: {
