@@ -1373,3 +1373,87 @@
     justify-content: center;
   }
 }
+
+.portal-brand {
+  text-decoration: none;
+}
+
+.portal-rsvp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 20px 0 0;
+  text-decoration: none;
+}
+
+.portal-hero .portal-description {
+  margin: 16px auto 0;
+  font-size: 1rem;
+}
+
+.portal-chip {
+  font-size: 0.875rem;
+}
+
+#confirmar-presenca {
+  scroll-margin-top: 16px;
+  margin-bottom: 32px;
+}
+
+.dashboard-overview-head {
+  margin-bottom: 24px;
+}
+
+.dashboard-overview-head h1 {
+  margin: 0 0 8px;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  line-height: 1.15;
+}
+
+.dashboard-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  color: #65505a;
+}
+
+.dashboard-event-meta span {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dashboard-metrics {
+  align-items: stretch;
+}
+
+.dashboard-metrics .metric > span,
+.dashboard-metrics .metric > small {
+  font-size: 0.875rem;
+}
+
+.pending-metric {
+  text-align: left;
+}
+
+.pending-metric:hover {
+  border-color: #925368;
+}
+
+.pending-metric small {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.topright .public-preview {
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+@media (max-width: 600px) {
+  .topright .public-preview {
+    padding: 8px;
+    text-align: center;
+  }
+}

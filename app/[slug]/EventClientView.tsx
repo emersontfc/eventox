@@ -1,9 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import {
-  CalendarDays, MapPin, Search, Check, Sparkles, Lock, ArrowRight,
-  UtensilsCrossed, CheckCircle2, UserCheck, X, Shield, Clock3, Heart,
-  Camera, ExternalLink, Image, Share2
+  CalendarDays, MapPin, Search, Check, Sparkles, Lock, X, Shield,
+  Camera
 } from 'lucide-react';
 import Countdown from '../../components/Countdown';
 import AdminDashboard from '../AdminDashboard';
@@ -142,15 +141,11 @@ export default function EventClientView({
 
   if (isAdmin && viewMode === 'admin') {
     return (
-      <div>
-        <div className="admin-view-banner">
-          <span>Modo Administrador Ativo</span>
-          <button onClick={() => setViewMode('guest')}>
-            Ver como Convidado (Portal Público)
-          </button>
-        </div>
-        <AdminDashboard slug={event.slug} onExit={() => setViewMode('guest')} />
-      </div>
+      <AdminDashboard
+        slug={event.slug}
+        onPreview={() => setViewMode('guest')}
+        onExit={() => { setIsAdmin(false); setViewMode('guest'); }}
+      />
     );
   }
 
@@ -158,18 +153,18 @@ export default function EventClientView({
     <div className="event-portal-page">
       {/* Top navigation */}
       <header className="portal-nav">
-        <div className="portal-brand" onClick={() => window.location.href = '/'}>
+        <a className="portal-brand" href="/">
           <Sparkles size={20} className="portal-icon" />
           <span>Eventox</span>
-        </div>
+        </a>
         <div className="portal-nav-actions">
           {isAdmin ? (
             <button className="primary-pill" onClick={() => setViewMode('admin')}>
-              <Shield size={16} /> Painel de Organização
+              <Shield size={16} /> Abrir painel
             </button>
           ) : (
             <button className="outline-pill" onClick={() => setLoginModal(true)}>
-              <Lock size={15} /> Área de Organização
+              <Lock size={15} /> Área do organizador
             </button>
           )}
         </div>
@@ -178,15 +173,10 @@ export default function EventClientView({
       {/* Hero Section */}
       <section className="portal-hero">
         <div className="portal-hero-container">
-          <span className="portal-badge">✦ CELEBRAÇÃO & CONVÍVIO</span>
           <h1 className="portal-title">{event.title}</h1>
           <p className="portal-host">
             Anfitrião: <strong>{event.hostName}</strong>
           </p>
-          <p className="portal-description">
-            {event.description || 'Uma noite extraordinária feita de memórias, conquistas e momentos para toda a vida.'}
-          </p>
-
           <div className="portal-meta-chips">
             <div className="portal-chip">
               <CalendarDays size={18} />
@@ -197,22 +187,18 @@ export default function EventClientView({
               <span>{event.venue || 'Local a definir'}</span>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Countdown Card */}
-      <section className="portal-countdown-section">
-        <div className="portal-countdown-container">
-          <Countdown date={event.eventDate} title="CONTAGEM REGRESSIVA PARA O GRANDE DIA" />
+          <a className="primary-pill portal-rsvp-link" href="#confirmar-presenca">
+            <Check size={18} /> Confirmar presença
+          </a>
+          {event.description && <p className="portal-description">{event.description}</p>}
         </div>
       </section>
 
       {/* RSVP & Seat Finder Section */}
-      <section className="portal-rsvp-section">
+      <section className="portal-rsvp-section" id="confirmar-presenca" tabIndex={-1}>
         <div className="portal-rsvp-card">
           <div className="rsvp-header">
-            <span className="overline">ENCONTRA O TEU LUGAR & CONFIRMAÇÃO</span>
-            <h2>És um dos nossos convidados?</h2>
+            <h2>Confirma a tua presença</h2>
             <p>Digita o teu nome para consultar a tua mesa, número do lugar e confirmar a tua presença.</p>
           </div>
 
@@ -320,63 +306,26 @@ export default function EventClientView({
         </div>
       </section>
 
-      {/* Shared Photo Gallery Section */}
-      <section className="portal-gallery-section">
-        <div className="portal-gallery-card">
-          <div className="gallery-header">
-            <span className="overline">✦ REGISTO DE MEMÓRIAS & FOTOS COLETIVAS</span>
-            <h2>Galeria Compartilhada do Evento</h2>
-            <p>
-              Tira fotografias durante a celebração e partilha-as connosco! As fotos enviadas ficam guardadas no álbum oficial do anfitrião em resolução máxima.
-            </p>
-          </div>
-
-          {event.photoAlbumUrl ? (
-            <div className="gallery-content">
-              <div className="gallery-action-box">
-                <a
-                  href={event.photoAlbumUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="gallery-primary-button"
-                >
-                  <Camera size={22} />
-                  <span>Adicionar Fotos ao Álbum Oficial 📸</span>
-                </a>
-                <a
-                  href={event.photoAlbumUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="gallery-secondary-button"
-                >
-                  <ExternalLink size={17} />
-                  <span>Ver Álbum no Google Fotos ↗</span>
-                </a>
-              </div>
-
-              <div className="gallery-features-row">
-                <div className="gallery-feature-pill">
-                  <span className="pill-icon">📱</span>
-                  <span>Upload direto pelo telemóvel</span>
-                </div>
-                <div className="gallery-feature-pill">
-                  <span className="pill-icon">🌟</span>
-                  <span>Qualidade original (HD / 4K)</span>
-                </div>
-                <div className="gallery-feature-pill">
-                  <span className="pill-icon">⚡</span>
-                  <span>Sem registo obrigatório</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="gallery-empty-state">
-              <Camera size={32} />
-              <p>O link do álbum partilhado estará disponível aqui durante o evento.</p>
-            </div>
-          )}
+      {/* Countdown Card */}
+      <section className="portal-countdown-section">
+        <div className="portal-countdown-container">
+          <Countdown date={event.eventDate} title="Contagem regressiva" />
         </div>
       </section>
+
+      {event.photoAlbumUrl && (
+        <section className="portal-gallery-section">
+          <div className="portal-gallery-card">
+            <div className="gallery-header">
+              <h2>Álbum de fotos</h2>
+              <p>Vê e partilha fotografias do evento no álbum do anfitrião.</p>
+            </div>
+            <a href={event.photoAlbumUrl} target="_blank" rel="noopener noreferrer" className="gallery-primary-button">
+              <Camera size={20} /> Abrir álbum de fotos
+            </a>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="portal-footer">
@@ -384,8 +333,6 @@ export default function EventClientView({
           <p>© 2026 {event.title} ✦ Eventox — Gestão Inteligente de Eventos</p>
           <div className="footer-links">
             <a href="/">Criar um Evento</a>
-            <span>·</span>
-            <button onClick={() => setLoginModal(true)}>Organização</button>
           </div>
         </div>
       </footer>
@@ -397,7 +344,7 @@ export default function EventClientView({
             <div className="modal-title">
               <div>
                 <span className="overline">ACESSO RESERVADO</span>
-                <h2>Área de Organização</h2>
+                <h2>Área do organizador</h2>
               </div>
               <button onClick={() => setLoginModal(false)}><X size={18} /></button>
             </div>
