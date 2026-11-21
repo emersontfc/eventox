@@ -5,7 +5,7 @@ import {
   LayoutDashboard, MapPin, Menu, Music2, Plus, Search, Settings2, Sparkles,
   Trash2, Users, UtensilsCrossed, ClipboardList, X, LogOut, ExternalLink,
   Copy, CheckCheck, Link2, Share2, QrCode, Monitor, Shield, UserCheck, Radio,
-  MonitorPlay, Palette,
+  MonitorPlay, Palette, Crown,
   type LucideIcon
 } from 'lucide-react';
 import QRCode from 'qrcode';
@@ -67,6 +67,7 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
   const [menu, setMenu] = useState(false);
   const [edit, setEdit] = useState<Guest | null>(null);
   const [rename, setRename] = useState<Table | null>(null);
+  const [tableModal, setTableModal] = useState<{ id: number; name: string; capacity: number } | null>(null);
   const [prefs, setPrefs] = useState(initial.settings);
   const [query, setQuery] = useState('');
   const [tableFilter, setTableFilter] = useState(0);
@@ -161,8 +162,46 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
   };
 
   const occupied = (id: number, exclude = 0) => data.guests.filter(g => g.tableId === id && g.id !== exclude).map(g => g.seat);
-  const free = (id: number, exclude = 0) => Array.from({ length: 10 }, (_, i) => i + 1).filter(n => !occupied(id, exclude).includes(n));
+  const free = (id: number, exclude = 0) => {
+    const cap = data.tables.find(t => t.id === id)?.capacity || 10;
+    return Array.from({ length: cap }, (_, i) => i + 1).filter(n => !occupied(id, exclude).includes(n));
+  };
   const add = (id = data.tables[0]?.id || 1, seat?: number) => setEdit({ ...blank, tableId: id, seat: seat || free(id)[0] || 1 });
+
+  const sortedTables = useMemo(() => {
+    return [...data.tables].sort((a, b) => {
+      const aHonra = a.name.toLowerCase().includes('honra');
+      const bHonra = b.name.toLowerCase().includes('honra');
+      if (aHonra && !bHonra) return -1;
+      if (!aHonra && bHonra) return 1;
+      return a.id - b.id;
+    });
+  }, [data.tables]);
+
+  const hasMesaHonra = useMemo(() => {
+    return data.tables.some(t => t.name.toLowerCase().includes('honra'));
+  }, [data.tables]);
+
+  const getSeatStyle = (seatNum: number, capacity: number): React.CSSProperties | undefined => {
+    if (capacity === 10) return undefined;
+    const angle = ((seatNum - 1) / capacity) * 2 * Math.PI - Math.PI / 2;
+    const left = Math.round(92 + 88 * Math.cos(angle));
+    const top = Math.round(88 + 88 * Math.sin(angle));
+    return { left: `${left}px`, top: `${top}px` };
+  };
+
+  const handleDeleteTable = async (tableId: number) => {
+    const target = data.tables.find(t => t.id === tableId);
+    if (!target) return;
+    const people = data.guests.filter(g => g.tableId === tableId);
+    if (people.length > 0) {
+      alert(`Não é possível eliminar a mesa "${target.name}" porque possui ${people.length} convidado(s) atribuído(s).`);
+      return;
+    }
+    if (!confirm(`Tens a certeza que desejas eliminar a mesa "${target.name}"?`)) return;
+    await save({ action: 'table-delete', id: tableId });
+    setTableModal(null);
+  };
 
   const filtered = useMemo(() => data.guests.filter(g =>
     g.name.toLowerCase().includes(query.toLowerCase()) &&
@@ -415,13 +454,17 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
               </div>
 
               <div className="overview-grid">
-                {data.tables.map(t => {
+                {sortedTables.map(t => {
                   const count = occupied(t.id).length;
+                  const isHonra = t.name.toLowerCase().includes('honra');
                   return (
-                    <button className="table-summary" key={t.id} onClick={() => { setTableFilter(t.id); go('guests'); }}>
-                      <span className="table-number">{String(t.id).padStart(2, '0')}</span>
+                    <button className={`table-summary ${isHonra ? 'table-summary-honra' : ''}`} key={t.id} onClick={() => { setTableFilter(t.id); go('guests'); }}>
+                      <span className="table-number">{isHonra ? '👑' : String(t.id).padStart(2, '0')}</span>
                       <div>
-                        <strong>{t.name}</strong>
+                        <strong style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          {t.name}
+                          {isHonra && <span style={{ fontSize: '10px', background: '#d4af3725', color: '#b8860b', padding: '1px 6px', borderRadius: '10px' }}>VIP</span>}
+                        </strong>
                         <small>{count} de {t.capacity} lugares ocupados</small>
                         <div className="bar"><i style={{ width: Math.min(100, (count / t.capacity) * 100) + '%' }} /></div>
                       </div>
@@ -541,27 +584,69 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                   <h1>Mesas & lugares</h1>
                   <p>Lugares por mesa. Toca num lugar para atribuir um convidado.</p>
                 </div>
-                <span className="capacity">{data.guests.length} ocupados</span>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <button
+                    className="primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => setTableModal({ id: 0, name: '', capacity: 10 })}
+                  >
+                    <Plus size={16} /> Nova Mesa
+                  </button>
+                  <span className="capacity">{data.guests.length} ocupados</span>
+                </div>
               </div>
+
+              {!hasMesaHonra && (
+                <div className="mesa-honra-banner">
+                  <div className="banner-copy">
+                    <strong>👑 Falta adicionar a Mesa de Honra?</strong>
+                    <p>Cria a mesa VIP de honra com 4 lugares para o anfitrião, pais ou convidados solenes com um clique.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-mesa-honra"
+                    onClick={async () => {
+                      await save({ action: 'table-create', name: 'Mesa de Honra', capacity: 4 });
+                    }}
+                  >
+                    <Crown size={15} /> Adicionar Mesa de Honra (4 lugares)
+                  </button>
+                </div>
+              )}
+
               <div className="seats-grid">
-                {data.tables.map(t => {
+                {sortedTables.map(t => {
                   const people = data.guests.filter(g => g.tableId === t.id);
+                  const isHonra = t.name.toLowerCase().includes('honra');
                   return (
-                    <div className="seat-card" key={t.id}>
+                    <div className={`seat-card ${isHonra ? 'seat-card-honra' : ''}`} key={t.id}>
                       <div className="seat-top">
-                        <span>MESA {String(t.id).padStart(2, '0')}</span>
-                        <button title="Renomear mesa" onClick={() => setRename({ ...t })}><Edit3 size={17} /></button>
+                        <span>{isHonra ? '👑 MESA DE HONRA' : `MESA ${String(t.id).padStart(2, '0')}`}</span>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button title="Editar mesa e capacidade" onClick={() => setTableModal({ ...t })}><Edit3 size={17} /></button>
+                          {people.length === 0 && (
+                            <button title="Eliminar mesa vazia" style={{ color: '#b33' }} onClick={() => handleDeleteTable(t.id)}><Trash2 size={17} /></button>
+                          )}
+                        </div>
                       </div>
-                      <h3>{t.name}</h3>
+                      <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {t.name}
+                        {isHonra && <span style={{ fontSize: '11px', background: '#d4af3725', color: '#b8860b', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>VIP · 4 LUGARES</span>}
+                      </h3>
                       <div className="diagram">
-                        <div className="round"><UtensilsCrossed size={24} /><small>{people.length}/{t.capacity}</small></div>
+                        <div className={`round ${isHonra ? 'round-honra' : ''}`}>
+                          {isHonra ? <Crown size={24} /> : <UtensilsCrossed size={24} />}
+                          <small>{people.length}/{t.capacity}</small>
+                        </div>
                         {Array.from({ length: t.capacity }, (_, i) => {
                           const s = i + 1, g = people.find(g => g.seat === s);
+                          const seatStyle = getSeatStyle(s, t.capacity);
                           return (
                             <button
                               key={s}
-                              className={'seat pos-' + s + (g ? ' taken' : '')}
-                              title={g ? g.name : 'Lugar livre ' + s}
+                              className={'seat' + (t.capacity === 10 ? ` pos-${s}` : '') + (g ? ' taken' : '') + (isHonra ? ' seat-honra' : '')}
+                              style={seatStyle}
+                              title={g ? `${g.name} (${t.name} · Lugar ${s})` : `Lugar livre ${s}`}
                               onClick={() => g ? setEdit({ ...g }) : add(t.id, s)}
                             >
                               {g ? <Check size={13} /> : s}
@@ -570,7 +655,7 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                         })}
                       </div>
                       <div className="legend">
-                        <span><i className="taken" /> Ocupado</span>
+                        <span><i className={`taken ${isHonra ? 'taken-honra' : ''}`} /> Ocupado</span>
                         <span><i /> Disponível</span>
                       </div>
                       <div className="bar"><i style={{ width: Math.min(100, (people.length / t.capacity) * 100) + '%' }} /></div>
@@ -716,13 +801,13 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                 </label>
                 <label className="field">Mesa
                   <select value={edit.tableId} onChange={e => { const id = +e.target.value; setEdit({ ...edit, tableId: id, seat: free(id, edit.id)[0] || 1 }); }}>
-                    {data.tables.map(t => <option key={t.id} value={t.id} disabled={!free(t.id, edit.id).length}>{t.name}</option>)}
+                    {sortedTables.map(t => <option key={t.id} value={t.id} disabled={!free(t.id, edit.id).length}>{t.name} ({t.capacity} lugares)</option>)}
                   </select>
                 </label>
                 <label className="field">Lugar
                   <select value={edit.seat} onChange={e => setEdit({ ...edit, seat: +e.target.value })}>
                     {Array.from(new Set([...free(edit.tableId, edit.id), edit.seat])).sort((a, b) => a - b).map(n => (
-                      <option key={n} value={n}>{String(n).padStart(2, '0')}</option>
+                      <option key={n} value={n}>Lugar #{String(n).padStart(2, '0')}</option>
                     ))}
                   </select>
                 </label>
@@ -738,6 +823,97 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
               <div className="modal-actions">
                 <button type="button" className="outline" onClick={() => setEdit(null)}>Cancelar</button>
                 <button className="primary" disabled={saving}>{saving ? 'A guardar…' : 'Guardar convidado'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {tableModal && (
+        <div className="modal-cover" onMouseDown={e => { if (e.target === e.currentTarget) setTableModal(null); }}>
+          <div className="modal compact">
+            <div className="modal-title">
+              <div>
+                <span className="overline">{tableModal.id === 0 ? 'NOVA MESA' : 'CONFIGURAÇÃO DA MESA'}</span>
+                <h2>{tableModal.id === 0 ? 'Adicionar Nova Mesa' : 'Editar Mesa'}</h2>
+              </div>
+              <button onClick={() => setTableModal(null)}><X /></button>
+            </div>
+            <form onSubmit={async e => {
+              e.preventDefault();
+              const act = tableModal.id === 0 ? 'table-create' : 'table-rename';
+              if (await save({ action: act, id: tableModal.id, name: tableModal.name, capacity: tableModal.capacity })) {
+                setTableModal(null);
+              }
+            }}>
+              <label className="field">Nome da mesa
+                <input
+                  autoFocus
+                  required
+                  value={tableModal.name}
+                  onChange={e => setTableModal({ ...tableModal, name: e.target.value })}
+                  placeholder="Ex.: Mesa de Honra, Mesa 11..."
+                />
+              </label>
+
+              <label className="field" style={{ marginTop: '12px' }}>
+                Capacidade (Lugares: {tableModal.capacity})
+                <input
+                  type="number"
+                  min={2}
+                  max={30}
+                  required
+                  value={tableModal.capacity}
+                  onChange={e => setTableModal({ ...tableModal, capacity: Math.max(2, Math.min(30, +e.target.value || 2)) })}
+                />
+                <div className="capacity-presets">
+                  <button
+                    type="button"
+                    className={`capacity-pill honra-preset ${tableModal.capacity === 4 && tableModal.name.toLowerCase().includes('honra') ? 'active' : ''}`}
+                    onClick={() => setTableModal({ ...tableModal, name: tableModal.name || 'Mesa de Honra', capacity: 4 })}
+                  >
+                    👑 Honra (4 lugares)
+                  </button>
+                  <button
+                    type="button"
+                    className={`capacity-pill ${tableModal.capacity === 6 ? 'active' : ''}`}
+                    onClick={() => setTableModal({ ...tableModal, capacity: 6 })}
+                  >
+                    Pequena (6)
+                  </button>
+                  <button
+                    type="button"
+                    className={`capacity-pill ${tableModal.capacity === 10 ? 'active' : ''}`}
+                    onClick={() => setTableModal({ ...tableModal, capacity: 10 })}
+                  >
+                    Padrão (10)
+                  </button>
+                  <button
+                    type="button"
+                    className={`capacity-pill ${tableModal.capacity === 12 ? 'active' : ''}`}
+                    onClick={() => setTableModal({ ...tableModal, capacity: 12 })}
+                  >
+                    Grande (12)
+                  </button>
+                </div>
+              </label>
+
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {tableModal.id > 0 && data.guests.filter(g => g.tableId === tableModal.id).length === 0 ? (
+                  <button
+                    type="button"
+                    style={{ color: '#b33', background: 'transparent', border: 'none', padding: '8px 0', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    onClick={() => handleDeleteTable(tableModal.id)}
+                  >
+                    <Trash2 size={15} /> Eliminar mesa
+                  </button>
+                ) : <div />}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" className="outline" onClick={() => setTableModal(null)}>Cancelar</button>
+                  <button className="primary" disabled={saving}>
+                    {saving ? 'A guardar…' : (tableModal.id === 0 ? 'Criar mesa' : 'Guardar alterações')}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

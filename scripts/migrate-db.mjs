@@ -212,5 +212,32 @@ if (userCount === 0) {
   }
 }
 
+// 3. Garantir que a 'Mesa de Honra' (com 4 lugares) existe nos eventos
+try {
+  const allEvents = sqlite.prepare('SELECT id, slug, title FROM events').all();
+  for (const ev of allEvents) {
+    const existingHonra = sqlite.prepare(
+      "SELECT id, name, capacity FROM guest_tables WHERE event_id = ? AND (LOWER(name) LIKE '%honra%' OR LOWER(name) LIKE '%principal%')"
+    ).get(ev.id);
+
+    if (!existingHonra) {
+      const maxTableId = sqlite.prepare('SELECT MAX(id) as maxId FROM guest_tables WHERE event_id = ?').get(ev.id)?.maxId || 0;
+      const nextId = maxTableId + 1;
+      sqlite.prepare('INSERT INTO guest_tables (id, event_id, name, capacity) VALUES (?, ?, ?, ?)').run(
+        nextId,
+        ev.id,
+        'Mesa de Honra',
+        4
+      );
+      console.log(`👑 [Evento ${ev.slug}] Criada 'Mesa de Honra' com 4 lugares (ID ${nextId}).`);
+    } else if (existingHonra.name.toLowerCase().includes('honra') && existingHonra.capacity !== 4) {
+      sqlite.prepare('UPDATE guest_tables SET capacity = 4 WHERE id = ?').run(existingHonra.id);
+      console.log(`👑 [Evento ${ev.slug}] Atualizada capacidade da 'Mesa de Honra' (ID ${existingHonra.id}) para 4 lugares.`);
+    }
+  }
+} catch (tableErr) {
+  console.warn('⚠️ Erro ao verificar Mesa de Honra:', tableErr.message);
+}
+
 sqlite.close();
 console.log('✅ Migrações e seeds aplicados com sucesso!');

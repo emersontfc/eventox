@@ -2412,3 +2412,120 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Mesa de Honra & VIP Seating Enhancements */
+.seat-card.seat-card-honra {
+  border: 2px solid #d4af37 !important;
+  background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%) !important;
+  box-shadow: 0 6px 24px rgba(212, 175, 55, 0.2) !important;
+}
+.seat-card.seat-card-honra .seat-top span {
+  color: #b8860b !important;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.table-summary.table-summary-honra {
+  border: 1.5px solid #d4af37 !important;
+  background: #fffdf6 !important;
+}
+.table-summary.table-summary-honra .table-number {
+  background: #fbf2dc;
+  color: #b8860b;
+}
+.round.round-honra {
+  border: 2px solid #d4af37 !important;
+  background: #fdfaf0 !important;
+  color: #b8860b !important;
+}
+.round.round-honra svg {
+  color: #b8860b !important;
+}
+.seat.seat-honra {
+  border-color: #d4af37;
+  color: #8b6b15;
+}
+.seat.seat-honra.taken {
+  background: #b8860b !important;
+  border-color: #996e00 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(184, 134, 11, 0.45);
+}
+i.taken.taken-honra {
+  background: #b8860b !important;
+  border-color: #d4af37 !important;
+}
+.mesa-honra-banner {
+  background: linear-gradient(135deg, #fdf8ee 0%, #f7ecd5 100%);
+  border: 1px solid #d4af37aa;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.12);
+}
+.mesa-honra-banner .banner-copy strong {
+  color: #8b6b15;
+  font-size: 14.5px;
+  display: block;
+  font-weight: 700;
+}
+.mesa-honra-banner .banner-copy p {
+  color: #715520;
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+.btn-mesa-honra {
+  background: #b8860b;
+  color: #ffffff;
+  border: none;
+  border-radius: 9px;
+  padding: 9px 18px;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.btn-mesa-honra:hover {
+  background: #996e00;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(184, 134, 11, 0.35);
+}
+.capacity-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.capacity-pill {
+  border: 1px solid #e2d7d5;
+  background: #faf8f7;
+  color: #634b53;
+  padding: 5px 11px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.capacity-pill:hover, .capacity-pill.active {
+  border-color: #62263b;
+  background: #62263b;
+  color: #ffffff;
+}
+.capacity-pill.honra-preset {
+  border-color: #d4af37;
+  color: #8b6b15;
+  background: #fffcf2;
+}
+.capacity-pill.honra-preset:hover, .capacity-pill.honra-preset.active {
+  background: #b8860b;
+  color: #ffffff;
+  border-color: #b8860b;
+}

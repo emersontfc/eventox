@@ -105,6 +105,13 @@ export async function POST(request: Request) {
       if (!name || !Number.isInteger(tableId) || !Number.isInteger(seat) || seat < 1 || !['pendente', 'confirmado', 'recusado', 'presente'].includes(status)) {
         throw new Error('Verifica nome, mesa, lugar e estado.');
       }
+
+      const [targetTable] = await db.select().from(guestTables).where(and(eq(guestTables.id, tableId), eq(guestTables.eventId, eventId))).limit(1);
+      if (!targetTable) throw new Error('Mesa não encontrada.');
+      if (seat > targetTable.capacity) {
+        throw new Error(`A mesa "${targetTable.name}" tem apenas ${targetTable.capacity} lugares. O lugar #${seat} não existe.`);
+      }
+
       const record = {
         eventId,
         name,
@@ -129,10 +136,41 @@ export async function POST(request: Request) {
       const id = Number(body.id);
       if (!Number.isInteger(id) || id < 1) throw new Error('Convidado inválido.');
       await db.delete(guests).where(and(eq(guests.id, id), eq(guests.eventId, eventId)));
+    } else if (action === 'table-save' || action === 'table-create') {
+      const id = Number(body.id || 0);
+      const name = String(body.name || '').trim().slice(0, 90);
+      const capacity = Math.min(30, Math.max(2, Number(body.capacity) || (name.toLowerCase().includes('honra') ? 4 : 10)));
+      if (!name) throw new Error('Nome da mesa obrigatório.');
+
+      if (id > 0) {
+        await db.update(guestTables).set({ name, capacity }).where(and(eq(guestTables.id, id), eq(guestTables.eventId, eventId)));
+      } else {
+        const existingTables = await db.select({ id: guestTables.id }).from(guestTables).where(eq(guestTables.eventId, eventId));
+        const maxId = existingTables.reduce((max: number, t: { id: number }) => Math.max(max, t.id), 0);
+        const nextId = maxId + 1;
+        await db.insert(guestTables).values({
+          id: nextId,
+          eventId,
+          name,
+          capacity,
+        });
+      }
     } else if (action === 'table-rename') {
-      const id = Number(body.id), name = String(body.name || '').trim().slice(0, 90);
+      const id = Number(body.id);
+      const name = String(body.name || '').trim().slice(0, 90);
+      const capacity = body.capacity !== undefined ? Math.min(30, Math.max(2, Number(body.capacity) || 10)) : undefined;
       if (!Number.isInteger(id) || !name) throw new Error('Nome da mesa inválido.');
-      await db.update(guestTables).set({ name }).where(and(eq(guestTables.id, id), eq(guestTables.eventId, eventId)));
+      const updateData: { name: string; capacity?: number } = { name };
+      if (capacity !== undefined) updateData.capacity = capacity;
+      await db.update(guestTables).set(updateData).where(and(eq(guestTables.id, id), eq(guestTables.eventId, eventId)));
+    } else if (action === 'table-delete') {
+      const id = Number(body.id);
+      if (!Number.isInteger(id) || id < 1) throw new Error('Mesa inválida.');
+      const seatedGuests = await db.select().from(guests).where(and(eq(guests.tableId, id), eq(guests.eventId, eventId)));
+      if (seatedGuests.length > 0) {
+        throw new Error(`Não podes eliminar uma mesa que possui ${seatedGuests.length} convidado(s) atribuído(s). Move ou remove os convidados primeiro.`);
+      }
+      await db.delete(guestTables).where(and(eq(guestTables.id, id), eq(guestTables.eventId, eventId)));
     } else if (action === 'settings') {
       const eventDate = String(body.eventDate || '');
       const eventName = String(body.eventName || '').trim().slice(0, 100);

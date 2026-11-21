@@ -7,9 +7,16 @@ import { hashPasscode, setSessionCookie } from '../../../lib/auth';
 export const dynamic = 'force-dynamic';
 
 const defaultTables = [
-  'Mesa Principal', 'Mesa de Honra', 'Família', 'Amigos de Infância',
-  'Colegas de Curso', 'VIP 1', 'VIP 2', 'Equipa & Produção',
-  'Convidados Especiais', 'Mesa Geral'
+  { name: 'Mesa de Honra', capacity: 4 },
+  { name: 'Mesa Principal', capacity: 10 },
+  { name: 'Família', capacity: 10 },
+  { name: 'Amigos de Infância', capacity: 10 },
+  { name: 'Colegas de Curso', capacity: 10 },
+  { name: 'VIP 1', capacity: 10 },
+  { name: 'VIP 2', capacity: 10 },
+  { name: 'Equipa & Produção', capacity: 10 },
+  { name: 'Convidados Especiais', capacity: 10 },
+  { name: 'Mesa Geral', capacity: 10 },
 ];
 
 export async function GET() {
@@ -97,13 +104,13 @@ export async function POST(request: Request) {
       createdAt: timestamp,
     }).returning();
 
-    // Initialize 10 default tables for this new event
+    // Initialize default tables for this new event
     if (inserted?.id) {
-      const tablesToInsert = defaultTables.map((name, i) => ({
+      const tablesToInsert = defaultTables.map((t, i) => ({
         id: (inserted.id * 100) + (i + 1),
         eventId: inserted.id,
-        name,
-        capacity: 10,
+        name: t.name,
+        capacity: t.capacity,
       }));
       await db.insert(guestTables).values(tablesToInsert).onConflictDoNothing();
     }
