@@ -1,4 +1,5 @@
 'use client';
+import type { ProgramItem } from '../../lib/event-program';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -70,12 +71,14 @@ interface MenuItemDisplay {
 export default function EventClientView({
   event,
   initialAdmin = false,
+  program,
   openAccess = false,
   canChangeTheme = false,
 }: {
   event: EventData;
   initialAdmin: boolean;
   openAccess: boolean;
+  program: ProgramItem[];
   canChangeTheme: boolean;
 }) {
   const isAdmin = initialAdmin;
@@ -379,7 +382,7 @@ export default function EventClientView({
       if (!res.ok) throw new Error(data.error || 'Erro ao enviar mensagem');
 
       setShowConfetti(true);
-      setMuralSuccess('✦ A tua mensagem de felicitação foi enviada e será exibida no mural solene do evento!');
+      setMuralSuccess('✦ A tua mensagem foi enviada. Ficará no mural após aprovação da equipa.');
       setMuralMessage('');
     } catch (err: any) {
       setMuralError(err.message || 'Erro ao enviar felicitação');
@@ -973,51 +976,20 @@ export default function EventClientView({
         <section className="portal-schedule-section" style={{ padding: '0 20px 40px' }}>
           <div className="capabilities-header" style={{ textAlign: 'center', marginBottom: '25px' }}>
             <span className="overline">MOMENTOS DA NOITE</span>
-            <h2>Programa Oficial da Gala</h2>
+            <h2>Programa do evento</h2>
             <p>Conhece os principais momentos planeados para esta grande celebração.</p>
           </div>
 
-          <div className="timeline-list">
-            <div className="timeline-card">
-              <span className="timeline-time-badge">14:00</span>
-              <div className="timeline-info">
-                <h4>Recepção & Boas-Vindas aos Convidados</h4>
-                <p>Check-in no tapete de honra, atribuição de mesas e cocktail de boas-vindas com canapés.</p>
-              </div>
+          {program.length ? (
+            <div className="timeline-list">
+              {program.map((item, index) => (
+                <div className="timeline-card" key={index}>
+                  <span className="timeline-time-badge">{item.time}</span>
+                  <div className="timeline-info"><h3>{item.title}</h3><p>{item.description}</p></div>
+                </div>
+              ))}
             </div>
-
-            <div className="timeline-card">
-              <span className="timeline-time-badge">15:00</span>
-              <div className="timeline-info">
-                <h4>Entrada Solene & Discursos de Homenagem</h4>
-                <p>Entrada oficial do homenageado, palavras da família, colegas e mesa de honra.</p>
-              </div>
-            </div>
-
-            <div className="timeline-card">
-              <span className="timeline-time-badge">16:30</span>
-              <div className="timeline-info">
-                <h4>Brinde de Honra & Sessão Fotográfica</h4>
-                <p>Brinde de celebração com espumante e sessão de fotos por mesas no backdrop oficial.</p>
-              </div>
-            </div>
-
-            <div className="timeline-card">
-              <span className="timeline-time-badge">17:30</span>
-              <div className="timeline-info">
-                <h4>Banquete de Gala & Abertura do Buffet</h4>
-                <p>Serviço de catering premium com pratos quentes, saladas e sobremesas finas.</p>
-              </div>
-            </div>
-
-            <div className="timeline-card">
-              <span className="timeline-time-badge">19:30</span>
-              <div className="timeline-info">
-                <h4>Corte do Bolo & Abertura da Pista de Dança</h4>
-                <p>Música ao vivo, DJ da noite, serviço de bar e celebração até ao final.</p>
-              </div>
-            </div>
-          </div>
+          ) : <p className="text-center">O programa será publicado em breve.</p>}
         </section>
       )}
 

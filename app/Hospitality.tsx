@@ -121,10 +121,12 @@ const isFoodCategory = (c: string) => ['entrada', 'prato_principal', 'comida', '
 
 export default function Hospitality({
   mode,
+  initialOrderFilter = 'ativos',
   tables,
   slug = 'emerson',
 }: {
   mode: 'menu' | 'orders' | 'playlist';
+  initialOrderFilter?: string;
   tables: Table[];
   slug?: string;
 }) {
@@ -142,7 +144,7 @@ export default function Hospitality({
   const [orderItem, setOrderItem] = useState(0);
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState('');
-  const [orderFilter, setOrderFilter] = useState('ativos');
+  const [orderFilter, setOrderFilter] = useState(initialOrderFilter);
   const [activePlayingSong, setActivePlayingSong] = useState<Song | null>(null);
 
   const load = async () => {

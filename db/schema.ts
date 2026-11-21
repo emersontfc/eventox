@@ -163,6 +163,7 @@ export const galleryMedia = sqliteTable('gallery_media', {
   originalName: text('original_name').notNull(),
   uploader: text('uploader').notNull(),
   album: text('album').notNull().default('Momentos especiais'),
+  featured: integer('featured', { mode: 'boolean' }).notNull().default(false),
   status: text('status').notNull().default('pendente'),
   createdAt: text('created_at').notNull(),
   ipHash: text('ip_hash').notNull().default(''),
@@ -235,6 +236,7 @@ export const guestbookMessages = sqliteTable('guestbook_messages', {
   relationship: text('relationship'), // 'Família' | 'Colega' | 'Amigo' | 'Mestre'
   message: text('message').notNull(),
   photoUrl: text('photo_url'),
+  featured: integer('featured', { mode: 'boolean' }).notNull().default(false),
   status: text('status').notNull().default('pendente'), // 'pendente' | 'aprovado' | 'rejeitado'
   approvedBy: integer('approved_by').references(() => users.id),
   createdAt: text('created_at').notNull(),
