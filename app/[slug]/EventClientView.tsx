@@ -42,6 +42,8 @@ export default function EventClientView({
   // Search & RSVP state
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const [searchCompleted, setSearchCompleted] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [searchResults, setSearchResults] = useState<GuestSearchResult[]>([]);
   const [selectedGuest, setSelectedGuest] = useState<GuestSearchResult | null>(null);
   const [rsvpStatus, setRsvpStatus] = useState<string>('');
@@ -65,20 +67,26 @@ export default function EventClientView({
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim() || searchQuery.length < 2) return;
+    const name = searchQuery.trim();
+    if (searching || name.length < 2) return;
     setSearching(true);
+    setSearchCompleted(false);
+    setSearchError('');
+    setSearchResults([]);
     setSelectedGuest(null);
     setRsvpMessage('');
     try {
       const res = await fetch(`/api/events/${encodeURIComponent(event.slug)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'guest-search', name: searchQuery }),
+        body: JSON.stringify({ action: 'guest-search', name }),
       });
       const data = await res.json() as { results?: GuestSearchResult[]; error?: string };
+      if (!res.ok) throw new Error('Falha na pesquisa');
       setSearchResults(data.results || []);
+      setSearchCompleted(true);
     } catch {
-      setSearchResults([]);
+      setSearchError('Não foi possível pesquisar. Tenta novamente.');
     } finally {
       setSearching(false);
     }
@@ -208,13 +216,22 @@ export default function EventClientView({
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSearchCompleted(false);
+                  setSearchError('');
+                  setSearchResults([]);
+                  setSelectedGuest(null);
+                }}
+                aria-label="Nome do convidado"
+                disabled={searching || rsvpLoading}
+                minLength={2}
                 placeholder="Ex.: João Silva..."
                 required
               />
             </div>
-            <button type="submit" className="primary-button" disabled={searching}>
-              {searching ? 'A pesquisar…' : 'Consultar Lugar'}
+            <button type="submit" className="primary-button" disabled={searching || rsvpLoading || searchQuery.trim().length < 2}>
+              {searching ? 'A pesquisar…' : 'Pesquisar nome'}
             </button>
           </form>
 
@@ -223,7 +240,8 @@ export default function EventClientView({
             <div className="search-results-list">
               <p className="results-count">Encontrámos {searchResults.length} resultado(s):</p>
               {searchResults.map((guest) => (
-                <div
+                <button
+                  type="button"
                   key={guest.id}
                   className="search-result-item"
                   onClick={() => setSelectedGuest(guest)}
@@ -235,13 +253,14 @@ export default function EventClientView({
                   <span className={`status-badge ${guest.status}`}>
                     {guest.status === 'confirmado' ? 'Confirmado' : guest.status === 'recusado' ? 'Não comparece' : 'Pendente'}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           )}
 
-          {searchResults.length === 0 && searchQuery && !searching && (
-            <p className="no-results-hint">
+          {searchError && <p className="no-results-hint" role="alert">{searchError}</p>}
+          {searchCompleted && searchResults.length === 0 && (
+            <p className="no-results-hint" role="status">
               Não encontrámos nenhum convidado com esse nome. Verifica a escrita ou fala com a comissão organizadora.
             </p>
           )}
