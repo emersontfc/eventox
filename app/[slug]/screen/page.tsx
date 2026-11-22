@@ -1,4 +1,5 @@
 'use client';
+import type { ProgramItem } from '../../../lib/event-program';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
@@ -58,6 +59,7 @@ interface ScreenData {
     status: string;
     createdAt: string;
   } | null;
+  program?: ProgramItem[];
   photos: Array<{
     id: number;
     key: string;
@@ -117,6 +119,21 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [qrJoinDataUrl, setQrJoinDataUrl] = useState<string>('');
   const [liveQuoteIndex, setLiveQuoteIndex] = useState(0);
+  const [contentPage, setContentPage] = useState(0);
+  const [previewMode, setPreviewMode] = useState(false);
+  const activeScene = screenData?.settings.activeSceneId;
+
+  useEffect(() => {
+    setPreviewMode(new URLSearchParams(window.location.search).get('preview') === '1');
+  }, []);
+
+  useEffect(() => {
+    setContentPage(0);
+    if (activeScene !== 'schedule' && activeScene !== 'gallery_mural') return;
+    if (screenData?.settings.isPaused || screenData?.settings.holdScene) return;
+    const timer = window.setInterval(() => setContentPage(page => page + 1), 6500);
+    return () => window.clearInterval(timer);
+  }, [activeScene, screenData?.settings.isPaused, screenData?.settings.holdScene]);
 
   // Question countdown state
   const [questionSecondsRemaining, setQuestionSecondsRemaining] = useState<number>(20);
@@ -387,9 +404,11 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
     );
   }
 
-  const { event, settings, scenes = [], activeMessage, quotes = [], recentArrivals = [], activeGameSession, interactions } = screenData!;
+  const { event, settings, activeMessage, quotes = [], photos = [], program = [], recentArrivals = [], activeGameSession, interactions } = screenData!;
   const currentSceneType = settings.activeSceneId || 'welcome';
   const currentQuote = quotes.length > 0 ? quotes[liveQuoteIndex % quotes.length] : null;
+  const programPage = (contentPage % Math.max(1, Math.ceil(program.length / 4))) * 4;
+  const galleryItem = photos[contentPage % photos.length];
 
   // Cinematic themes
   const themeClass =
@@ -409,11 +428,11 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className={`relative h-screen w-screen overflow-hidden bg-black flex items-center justify-center select-none font-sans`}
+      className={`event-stage relative h-screen w-screen overflow-hidden bg-black flex items-center justify-center select-none font-sans ${previewMode ? 'event-stage-preview' : ''}`}
     >
       {/* 16:9 Canvas Box with Responsive Scale & Safe Margin */}
       <div
-        className={`relative w-full max-w-[1920px] aspect-video max-h-screen flex flex-col justify-between p-6 sm:p-10 md:p-12 lg:p-16 overflow-hidden bg-gradient-to-br ${themeClass} shadow-2xl`}
+        className={`event-stage-canvas relative w-full max-w-[1920px] aspect-video max-h-screen flex flex-col justify-between p-6 sm:p-10 md:p-12 lg:p-16 overflow-hidden bg-gradient-to-br ${themeClass} shadow-2xl`}
       >
         {/* Ambient atmospheric glow */}
         <div className="absolute inset-0 pointer-events-none opacity-40 overflow-hidden">
@@ -424,7 +443,7 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
 
         {/* Floating Top Controls (auto-hides on idle) */}
         <div
-          className={`absolute top-4 right-4 z-50 flex items-center gap-3 transition-opacity duration-500 ${
+          className={`event-stage-controls absolute top-4 right-4 z-50 flex items-center gap-3 transition-opacity duration-500 ${
             showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         >
@@ -827,6 +846,40 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+          {currentSceneType === 'schedule' && (
+            <div className="screen-program">
+              <h2>Programa do evento</h2>
+              {program.length ? (
+                <ul>
+                  {program.slice(programPage, programPage + 4).map((item, index) => (
+                    <li key={programPage + index}><time dateTime={item.time}>{item.time}</time><strong>{item.title}</strong></li>
+                  ))}
+                </ul>
+              ) : <p>O programa será publicado em breve.</p>}
+            </div>
+          )}
+
+          {currentSceneType === 'gallery_mural' && (
+            <div className="screen-gallery">
+              <h2>Galeria do evento</h2>
+              {galleryItem ? (
+                galleryItem.mime.startsWith('video/') ? (
+                  <video key={galleryItem.id} src={`/api/gallery/media/${galleryItem.id}`} muted autoPlay loop playsInline />
+                ) : (
+                  <img src={`/api/gallery/media/${galleryItem.id}`} alt={`Fotografia de ${galleryItem.uploader || 'convidado'}`} />
+                )
+              ) : <p>As fotos aprovadas aparecem aqui.</p>}
+            </div>
+          )}
+
+          {(currentSceneType === 'tribute' || currentSceneType === 'gratitude') && (
+            <div className="screen-tribute">
+              <h2>{currentSceneType === 'tribute' ? 'Homenagem' : 'Obrigado pela tua presença'}</h2>
+              {currentSceneType === 'tribute' && (activeMessage?.text || currentQuote?.quote) ? (
+                <blockquote>{activeMessage?.text || currentQuote?.quote}</blockquote>
+              ) : <p>{event.title}</p>}
             </div>
           )}
         </section>

@@ -1,13 +1,27 @@
 import { redirect } from 'next/navigation';
 import AdminDashboard from '../../AdminDashboard';
-import { getEventMembershipContext } from '../../../lib/auth';
+import { getEventMembershipContext, getCurrentUser } from '../../../lib/auth';
+
+export const metadata = { title: 'Painel do organizador', robots: { index: false, follow: false } };
 
 export const dynamic = 'force-dynamic';
 
 export default async function OrganizerPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const access = await getEventMembershipContext(slug);
-  if (!access) redirect(`/${encodeURIComponent(slug)}?organizar=1`);
+  if (!access) {
+    if (await getCurrentUser()) {
+      return (
+        <div className="account-page">
+          <h1>Sem acesso a este evento</h1>
+          <p>Entra com a conta que recebeu o convite ou pede à organização para confirmar o teu acesso.</p>
+          <a className="outline-pill" href={`/conta?continuar=${encodeURIComponent(`/${slug}/organizar`)}`}>Entrar com outra conta</a>
+          <a className="outline-pill" href="/dashboard">Os meus eventos</a>
+        </div>
+      );
+    }
+    redirect(`/conta?continuar=${encodeURIComponent(`/${slug}/organizar`)}`);
+  }
 
   return (
     <AdminDashboard

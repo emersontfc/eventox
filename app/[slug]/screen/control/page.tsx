@@ -298,7 +298,7 @@ export default function ScreenControlPage({ params }: { params: Promise<{ slug: 
         )}
 
         {/* Global Controls Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Card 1: Master Controls */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col justify-between">
@@ -390,7 +390,7 @@ export default function ScreenControlPage({ params }: { params: Promise<{ slug: 
                 placeholder="Ex.: O brinde oficial terá início em 5 minutos..."
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <select
                   value={broadcastCategory}
                   onChange={(e) => setBroadcastCategory(e.target.value)}
@@ -403,9 +403,9 @@ export default function ScreenControlPage({ params }: { params: Promise<{ slug: 
                 <button
                   type="submit"
                   disabled={broadcastLoading || !broadcastText.trim()}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 py-2 px-3 text-xs font-bold text-slate-950 transition"
+                  className="min-w-0 flex-1 flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 py-2 px-3 text-xs font-bold text-slate-950 transition"
                 >
-                  <Send size={14} /> Projectar no Ecrã
+                  <Send size={14} /> Projetar no ecrã
                 </button>
               </div>
             </form>

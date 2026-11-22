@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CalendarDays, Camera, Check, Clock3, Download, Edit3, GlassWater, Heart,
+  CalendarDays, Camera, Check, Clock3, Download, Edit3, Eye, GlassWater, Heart,
   LayoutDashboard, MapPin, Menu, Music2, Plus, Search, Settings2, Sparkles,
   Trash2, Users, UtensilsCrossed, ClipboardList, X, LogOut, ExternalLink,
   Copy, CheckCheck, Link2, Share2, QrCode, Monitor, Shield, UserCheck, Radio,
@@ -79,6 +79,29 @@ const sectionPermissions: Record<string, string> = {
   settings: 'event:manage',
 };
 
+const navigation = [
+  { items: [{ id: 'overview', label: 'Visão geral', icon: LayoutDashboard }] },
+  { label: 'Evento', items: [
+    { id: 'guests', label: 'Convidados', icon: Users },
+    { id: 'reception', label: 'Receção', icon: UserCheck },
+    { id: 'tables', label: 'Mesas e lugares', icon: UtensilsCrossed },
+    { id: 'program', label: 'Programa', icon: CalendarDays },
+  ] },
+  { label: 'Operação', items: [
+    { id: 'menu', label: 'Cardápio e bar', icon: UtensilsCrossed },
+    { id: 'orders', label: 'Pedidos', icon: ClipboardList },
+    { id: 'playlist', label: 'Playlist', icon: Music2 },
+    { id: 'studio', label: 'Estúdio Live', icon: MonitorPlay },
+    { id: 'moderation', label: 'Galeria e mural', icon: Camera },
+  ] },
+  { label: 'Organização', items: [
+    { id: 'committee', label: 'Comissão', icon: Users },
+    { id: 'team', label: 'Equipa e acessos', icon: Shield },
+    { id: 'templates', label: 'Aparência', icon: Palette },
+    { id: 'settings', label: 'Configurações', icon: Settings2 },
+  ] },
+];
+
 export default function AdminDashboard({ slug, role, permissions }: { slug: string; role: string; permissions: string[] }) {
   const can = (permission: string) => hasPermission(role, permissions, permission);
   const [data, setData] = useState<Data>(initial);
@@ -90,6 +113,22 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [menu, setMenu] = useState(false);
+  const navigationDialog = useRef<HTMLDialogElement>(null);
+  const panelContent = useRef<HTMLMainElement>(null);
+
+  useEffect(() => {
+    const dialog = navigationDialog.current;
+    if (!dialog) return;
+    if (menu && !dialog.open) dialog.showModal();
+    if (!menu && dialog.open) dialog.close();
+  }, [menu]);
+
+  useEffect(() => {
+    const compact = window.matchMedia('(max-width: 1100px)');
+    const closeOnDesktop = () => { if (!compact.matches) setMenu(false); };
+    compact.addEventListener('change', closeOnDesktop);
+    return () => compact.removeEventListener('change', closeOnDesktop);
+  }, []);
   const [edit, setEdit] = useState<Guest | null>(null);
   const [rename, setRename] = useState<Table | null>(null);
   const [tableModal, setTableModal] = useState<{ id: number; name: string; capacity: number } | null>(null);
@@ -251,7 +290,13 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
       setProgramDirty(false);
     }
     if (name !== 'orders') setOrderFilter('ativos');
-    if (name === 'overview' || can(sectionPermissions[name])) setTab(name);
+    if (name === 'overview' || can(sectionPermissions[name])) {
+      setTab(name);
+      if (name !== tab) window.requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+        panelContent.current?.focus({ preventScroll: true });
+      });
+    }
     setMenu(false);
   };
 
@@ -275,115 +320,78 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
     URL.revokeObjectURL(link.href);
   };
 
-  const hostDisplay = data.settings.hostName || (slug === 'emerson' ? 'EMERSON CHARLES' : 'ANFITRIÃO');
-  const eventDisplay = data.settings.eventName || 'EVENTO 2026';
+  const eventDisplay = data.settings.eventName || 'Evento';
+  const sectionName = navigation.flatMap(group => group.items).find(item => item.id === tab)?.label || 'Estúdio Live';
+
+  function renderNavigation(compact = false) {
+    return (
+      <>
+        <div className="organizer-brand">
+          <a href="/" aria-label="Eventox, página inicial"><Sparkles size={18} aria-hidden="true" /> Eventox</a>
+          {compact && (
+            <button type="button" className="organizer-icon-button" onClick={() => setMenu(false)} aria-label="Fechar menu">
+              <X size={20} />
+            </button>
+          )}
+          <p>{eventDisplay}</p>
+        </div>
+        <nav aria-label="Secções do painel">
+          {navigation.map(group => {
+            const items = group.items.filter(item => item.id === 'overview' || can(sectionPermissions[item.id]));
+            if (!items.length) return null;
+            return (
+              <div className="organizer-nav-group" key={group.label ?? 'overview'}>
+                {group.label && <p className="organizer-nav-label">{group.label}</p>}
+                {items.map(({ id, label, icon: Icon }) => (
+                  <button type="button" key={id} className={tab === id ? 'on' : ''} aria-current={tab === id ? 'page' : undefined} onClick={() => go(id)}>
+                    <Icon size={18} aria-hidden="true" />
+                    <span>{label}</span>
+                    {id === 'guests' && <b>{data.guests.length}</b>}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </nav>
+      </>
+    );
+  }
 
   return (
-    <div className="app">
-      <aside className={'sidebar ' + (menu ? 'show' : '')}>
-        <div className="brand">
-          <div className="brand-icon"><Sparkles /></div>
-          <div>
-            <small>{hostDisplay.toUpperCase()}</small>
-            <strong>{eventDisplay.toUpperCase()}</strong>
-          </div>
-          <button className="close-mobile" onClick={() => setMenu(false)}><X /></button>
-        </div>
-        <p className="sidebar-label">ORGANIZAÇÃO DO EVENTO</p>
-        <nav>
-          {[
-            ['overview', LayoutDashboard, 'Visão geral'],
-            ['guests', Users, 'Convidados'],
-            ['reception', UserCheck, 'Receção'],
-            ['program', CalendarDays, 'Programa'],
-            ['moderation', Camera, 'Galeria e mural'],
-            ['tables', UtensilsCrossed, 'Mesas & lugares'],
-            ['studio', MonitorPlay, 'Estúdio Live'],
-            ['templates', Palette, 'Templates & Estilo'],
-            ['menu', UtensilsCrossed, 'Cardápio & Bar'],
-            ['orders', ClipboardList, 'Pedidos'],
-            ['playlist', Music2, 'Playlist'],
-            ['committee', Users, 'Comissão'],
-            ['team', Shield, 'Equipa & Acessos'],
-            ['settings', Settings2, 'Configurações'],
-          ].filter(([id]) => id === 'overview' || can(sectionPermissions[id as string])).map(([id, Icon, label]) => (
-            <button key={id as string} className={tab === id ? 'on' : ''} onClick={() => go(id as string)}>
-              <Icon size={19} />
-              {label as string}
-              {id === 'guests' && <b>{data.guests.length}</b>}
+    <div className="app organizer-app">
+      <aside className="sidebar organizer-sidebar">{renderNavigation()}</aside>
+      <dialog id="organizer-menu" ref={navigationDialog} className="sidebar organizer-drawer" aria-label="Menu da organização"
+        onClose={() => setMenu(false)} onClick={event => {
+          if (event.target !== event.currentTarget) return;
+          const bounds = event.currentTarget.getBoundingClientRect();
+          if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) {
+            setMenu(false);
+          }
+        }}>
+        {renderNavigation(true)}
+      </dialog>
+
+      <main className="organizer-main" ref={panelContent} tabIndex={-1}>
+        <header className="organizer-topbar">
+          <div className="organizer-location">
+            <button type="button" className="organizer-menu-trigger" aria-label="Abrir menu"
+              aria-haspopup="dialog" aria-controls="organizer-menu" aria-expanded={menu} onClick={() => setMenu(true)}>
+              <Menu size={21} aria-hidden="true" />
             </button>
-          ))}
-        </nav>
-      </aside>
-
-      {menu && <div className="shade" onClick={() => setMenu(false)} />}
-
-      <main>
-        <header className="topbar">
-          <div>
-            <button className="hamburger" onClick={() => setMenu(true)}><Menu /></button>
-            <span style={{ cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Eventox</span>
-            <i>/</i>
-            <strong>{slug}</strong>
-            <i>/</i>
-            <span>{{
-              overview: 'Visão geral',
-              guests: 'Convidados',
-              reception: 'Receção',
-              program: 'Programa',
-              moderation: 'Galeria e mural',
-              tables: 'Mesas & lugares',
-              menu: 'Cardápio & Bar',
-              orders: 'Pedidos',
-              playlist: 'Playlist',
-              studio: 'Estúdio Live 16:9',
-              screen: 'Estúdio Live 16:9',
-              templates: 'Templates & Identidade Visual',
-              committee: 'Comissão Organizadora',
-              team: 'Equipa & Acessos',
-              settings: 'Configurações',
-            }[tab] || tab}</span>
+            <div><small>{eventDisplay}</small><strong>{sectionName}</strong></div>
           </div>
-          <div className="topright">
-            <a className="outline guest-preview-action" href={`/${slug}`}>
-              Ver como convidado
+          <div className="organizer-header-actions">
+            <a className="organizer-header-action" href={`/${slug}`} aria-label="Ver como convidado" title="Ver como convidado">
+              <Eye size={18} aria-hidden="true" /><span>Ver convite</span>
             </a>
             {can('screen:control') && (
-            <button
-              type="button"
-              onClick={() => go('studio')}
-              className="outline"
-              style={{
-                padding: '5px 11px',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                borderColor: (tab === 'studio' || tab === 'screen') ? '#d97706' : '#e2e8f0',
-                background: (tab === 'studio' || tab === 'screen') ? '#fef3c7' : '#ffffff',
-                color: (tab === 'studio' || tab === 'screen') ? '#92400e' : '#1e293b',
-                fontWeight: 600,
-                cursor: 'pointer',
-                borderRadius: '8px',
-              }}
-              title="Abrir Controlo em Direto do Ecrã 16:9"
-            >
-              <MonitorPlay size={15} color="#d97706" />
-              <span>Estúdio Live</span>
-              <span className="green-dot" style={{ width: '7px', height: '7px' }} />
-            </button>
+              <a className="organizer-header-action" href={`/${slug}/screen`} target="_blank" rel="noopener noreferrer"
+                aria-label="Abrir ecrã do evento" title="Abrir ecrã do evento">
+                <MonitorPlay size={18} aria-hidden="true" /><span>Ecrã</span>
+              </a>
             )}
-            <button
-              type="button"
-              onClick={() => window.open(`/${slug}/screen`, '_blank')}
-              className="outline"
-              style={{ padding: '5px 9px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: '8px' }}
-              title="Abrir Ecrã 16:9 no Projector em nova janela"
-            >
-              <ExternalLink size={14} />
-            </button>
-            <button className="outline" style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px' }} onClick={handleLogout} title="Sair do modo administrador">
-              <LogOut size={15} /> Sair
+            <button type="button" className="organizer-header-action" onClick={handleLogout} aria-label="Sair" title="Sair">
+              <LogOut size={18} aria-hidden="true" /><span>Sair</span>
             </button>
           </div>
         </header>
@@ -403,29 +411,14 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
           {(tab === 'studio' || tab === 'screen') && <LiveStudioDashboard slug={slug} />}
 
           {tab === 'templates' && (
-            <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-              <div style={{
-                padding: '24px 28px',
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, rgba(217,119,6,0.15) 0%, rgba(15,23,42,0.95) 100%)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: '#ffffff',
-                marginBottom: '24px',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)'
-              }}>
-                <span style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.12em', color: '#f59e0b', textTransform: 'uppercase' }}>
-                  ✦ IDENTIDADE VISUAL & GALA ✦
-                </span>
-                <h1 style={{ fontSize: '1.75rem', fontFamily: 'serif', fontWeight: 700, color: '#ffffff', margin: '6px 0 8px 0' }}>
-                  Templates & Design de Gala
-                </h1>
-                <p style={{ fontSize: '0.875rem', color: '#cbd5e1', maxWidth: '640px', lineHeight: 1.6 }}>
-                  Escolhe o tema ideal para a tua celebração. O design selecionado aplica-se instantaneamente ao portal público dos convidados e aos ecrãs 16:9 com tipografia nobre e paletas cinematográficas.
-                </p>
-              </div>
-
+            <section className="appearance-panel">
+              <header className="desk-heading">
+                <h1>Aparência do convite</h1>
+                <p>Experimenta um tema e aplica-o quando quiseres atualizar a página pública.</p>
+              </header>
               <EventThemeSelector
                 currentTheme={data.event?.coverTheme || 'gala-gold'}
+                eventTitle={eventDisplay}
                 slug={slug}
                 onThemeChanged={(newTheme) => {
                   setData((prev) => ({
@@ -434,7 +427,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
                   }));
                 }}
               />
-            </div>
+            </section>
           )}
 
           {tab === 'program' && <EventProgramEditor slug={slug} onDirtyChange={setProgramDirty} />}
@@ -752,18 +745,9 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
                 )}
               </div>
 
-              {/* Seletor Visual de Templates & Identidade do Evento */}
-              <div style={{ marginTop: '24px' }}>
-                <EventThemeSelector
-                  currentTheme={data.event?.coverTheme || 'gala-gold'}
-                  slug={slug}
-                  onThemeChanged={(newTheme) => {
-                    setData((prev) => ({
-                      ...prev,
-                      event: prev.event ? { ...prev.event, coverTheme: newTheme } : prev.event,
-                    }));
-                  }}
-                />
+              <div className="settings-card theme-settings-link">
+                <div><h2>Aparência do convite</h2><p>Pré-visualiza e aplica os temas do evento.</p></div>
+                <button type="button" className="outline" onClick={() => go('templates')}>Gerir aparência</button>
               </div>
 
               <div className="settings-card" style={{ marginTop: '24px' }}>

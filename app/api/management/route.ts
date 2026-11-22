@@ -57,6 +57,7 @@ export async function GET(request: Request) {
         eventDate: event.eventDate,
         venue: event.venue,
         description: event.description,
+        coverTheme: event.coverTheme,
         photoAlbumUrl: event.photoAlbumUrl || '',
       } : null,
     });

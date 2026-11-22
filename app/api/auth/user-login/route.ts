@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../../db';
 import { users, events, eventMemberships } from '../../../../db/schema';
-import { eq, or } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 import { verifyPassword, setAuthCookie, logAuditAction } from '../../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
           role: eventMemberships.role,
         })
         .from(eventMemberships)
-        .where(eq(eventMemberships.userId, user.id));
+        .where(and(eq(eventMemberships.userId, user.id), eq(eventMemberships.status, 'ativo')));
 
       const memberEventIds = memberships.map((m: any) => m.eventId);
       const memberEvents = memberEventIds.length > 0

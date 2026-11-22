@@ -51,6 +51,50 @@ interface GameSession {
   topPlayers?: Array<{ nickname: string; score: number; avatar?: string; tableNumber?: string }>;
 }
 
+const sceneLibrary = [
+  { id: 'welcome', title: 'Boas-vindas', desc: 'Nome, anfitrião e local do evento' },
+  { id: 'countdown', title: 'Contagem regressiva', desc: 'Contagem até à hora do evento' },
+  { id: 'arrivals', title: 'Chegadas', desc: 'Convidados com entrada registada' },
+  { id: 'schedule', title: 'Programa', desc: 'Momentos publicados no convite' },
+  { id: 'quiz', title: 'Quiz Live', desc: 'Sala, perguntas e pódio' },
+  { id: 'poll', title: 'Votação', desc: 'Resultados em tempo real' },
+  { id: 'wordcloud', title: 'Nuvem de palavras', desc: 'Palavras enviadas pelo público' },
+  { id: 'gallery_mural', title: 'Galeria', desc: 'Fotos e vídeos aprovados' },
+  { id: 'tribute', title: 'Homenagem', desc: 'Dedicatória ou citação do evento' },
+  { id: 'gratitude', title: 'Encerramento', desc: 'Mensagem final para os convidados' },
+];
+
+const sceneTitle = (id: string) => sceneLibrary.find(scene => scene.id === id)?.title || id.replaceAll('_', ' ');
+
+async function studioRequest(url: string, init: RequestInit) {
+  const response = await fetch(url, init);
+  if (!response.ok) {
+    const data = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(data?.error || 'A operação falhou. Tenta novamente.');
+  }
+  return response;
+}
+
+function StudioPreview({ slug }: { slug: string }) {
+  const viewport = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0);
+
+  useEffect(() => {
+    const frame = viewport.current;
+    if (!frame) return;
+    const observer = new ResizeObserver(([entry]) => setScale(entry.contentRect.width / 1280));
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="studio-preview-frame" ref={viewport}>
+      <iframe title="Prévia do ecrã em direto" src={`/${encodeURIComponent(slug)}/screen?preview=1`}
+        width={1280} height={720} style={{ transform: `scale(${scale})` }} />
+    </div>
+  );
+}
+
 export default function LiveStudioDashboard({ slug }: { slug: string }) {
   const [activeTab, setActiveTab] = useState<'monitor' | 'games' | 'interactions' | 'messages'>('monitor');
   const [screenData, setScreenData] = useState<any>(null);
@@ -62,7 +106,9 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
   const [toast, setToast] = useState<string | null>(null);
 
   // Staging
-  const [stagedSceneId, setStagedSceneId] = useState<string>('welcome');
+  const [stagedSceneId, setStagedSceneId] = useState('');
+  const [sceneBusy, setSceneBusy] = useState(false);
+  const [syncMode, setSyncMode] = useState<'connecting' | 'live' | 'polling'>('connecting');
   const [tickerInput, setTickerInput] = useState('');
   const [emergencyText, setEmergencyText] = useState('Atenção a todos os presentes: por favor aguardem instruções da organização.');
 
@@ -133,9 +179,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
       if (screenRes.ok) {
         const sData = (await screenRes.json()) as any;
         setScreenData(sData);
-        if (sData.settings?.stagedSceneId) {
-          setStagedSceneId(sData.settings.stagedSceneId);
-        }
+        setStagedSceneId(sData.settings?.stagedSceneId || '');
       }
 
       if (gamesRes.ok) {
@@ -149,7 +193,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
         setMessages(mData.messages || []);
       }
 
-      setError(null);
+      if (!screenRes.ok) throw new Error('Não foi possível sincronizar o ecrã.');
     } catch (err: any) {
       setError(err.message || 'Erro ao sincronizar com o Estúdio Live');
     } finally {
@@ -166,16 +210,23 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
     try {
       eventSource = new EventSource(`/api/screen/${slug}/stream`);
+      eventSource.onopen = () => {
+        setSyncMode('live');
+        if (fallbackInterval) clearInterval(fallbackInterval);
+        fallbackInterval = null;
+      };
       eventSource.addEventListener('update', () => {
         loadStudioState();
       });
 
       eventSource.onerror = () => {
+        setSyncMode('polling');
         if (!fallbackInterval) {
           fallbackInterval = setInterval(loadStudioState, 4000);
         }
       };
     } catch {
+      setSyncMode('polling');
       fallbackInterval = setInterval(loadStudioState, 4000);
     }
 
@@ -185,54 +236,37 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
     };
   }, [slug, loadStudioState]);
 
-  // 1. Scene Switchers
-  const handlePublishScene = async (sceneId: string) => {
+  async function changeScene(action: 'set-scene' | 'stage-scene' | 'publish-staged', sceneId?: string) {
+    setSceneBusy(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/screen/${slug}`, {
+      await studioRequest(`/api/screen/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'set-scene', sceneId }),
+        body: JSON.stringify({ action, sceneId }),
       });
-      if (!res.ok) throw new Error('Falha ao publicar cena');
-      showToast(`🚀 Cena "${sceneId.toUpperCase()}" enviada para o ecrã com sucesso!`);
-      loadStudioState();
-    } catch (e: any) {
-      setError(e.message);
+      if (action === 'stage-scene') {
+        setStagedSceneId(sceneId ?? '');
+        showToast(`${sceneTitle(sceneId ?? '')} preparada.`);
+      } else {
+        if (action === 'publish-staged') setStagedSceneId('');
+        showToast(`${sceneTitle(sceneId ?? stagedSceneId)} enviada para o ecrã.`);
+      }
+      await loadStudioState();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Não foi possível atualizar a cena.');
+    } finally {
+      setSceneBusy(false);
     }
-  };
+  }
 
-  const handleStageScene = async (sceneId: string) => {
-    setStagedSceneId(sceneId);
-    try {
-      await fetch(`/api/screen/${slug}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'stage-scene', sceneId }),
-      });
-      showToast(`Cena "${sceneId}" preparada no Estúdio. Clica em "Enviar para o Ar" quando pronto.`);
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
-  const handlePublishStaged = async () => {
-    try {
-      const res = await fetch(`/api/screen/${slug}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'publish-staged' }),
-      });
-      if (!res.ok) throw new Error('Falha ao enviar cena preparada');
-      showToast('🌟 Cena preparada agora está NO AR na TV!');
-      loadStudioState();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
+  const handleStageScene = (id: string) => changeScene('stage-scene', id);
+  const handlePublishScene = (id: string) => changeScene('set-scene', id);
+  const handlePublishStaged = () => changeScene('publish-staged');
 
   const handleTogglePause = async () => {
     try {
-      const res = await fetch(`/api/screen/${slug}`, {
+      const res = await studioRequest(`/api/screen/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'toggle-pause' }),
@@ -247,7 +281,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handleNextScene = async () => {
     try {
-      await fetch(`/api/screen/${slug}`, {
+      await studioRequest(`/api/screen/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'next-scene' }),
@@ -260,7 +294,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handlePrevScene = async () => {
     try {
-      await fetch(`/api/screen/${slug}`, {
+      await studioRequest(`/api/screen/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'prev-scene' }),
@@ -277,7 +311,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
     if (!tickerInput.trim()) return;
 
     try {
-      await fetch(`/api/screen/${slug}`, {
+      await studioRequest(`/api/screen/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -296,7 +330,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handleClearTicker = async () => {
     try {
-      await fetch(`/api/screen/${slug}`, {
+      await studioRequest(`/api/screen/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'clear-ticker' }),
@@ -310,8 +344,9 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   // 3. Emergency Mode
   const handleToggleEmergency = async (active: boolean) => {
+    if (active && !window.confirm('Mostrar o alerta de emergência em todos os ecrãs do evento?')) return;
     try {
-      await fetch(`/api/screen/${slug}`, {
+      await studioRequest(`/api/screen/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -330,7 +365,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
   // 4. Live Quiz Engine Handlers
   const handleCreateGame = async () => {
     try {
-      const res = await fetch(`/api/games/${slug}`, {
+      const res = await studioRequest(`/api/games/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -351,7 +386,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handleStartSession = async (gameId: number) => {
     try {
-      const res = await fetch(`/api/games/${slug}`, {
+      const res = await studioRequest(`/api/games/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'start-session', gameId }),
@@ -367,7 +402,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handleStartQuestion = async (sessionId: number, qIdx: number) => {
     try {
-      await fetch(`/api/games/${slug}`, {
+      await studioRequest(`/api/games/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'start-question', sessionId, questionIndex: qIdx }),
@@ -381,7 +416,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handleRevealAnswer = async (sessionId: number) => {
     try {
-      await fetch(`/api/games/${slug}`, {
+      await studioRequest(`/api/games/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'reveal-answer', sessionId }),
@@ -395,7 +430,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handleShowPodium = async (sessionId: number) => {
     try {
-      await fetch(`/api/games/${slug}`, {
+      await studioRequest(`/api/games/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'show-podium', sessionId }),
@@ -410,7 +445,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handleEndSession = async (sessionId: number) => {
     try {
-      await fetch(`/api/games/${slug}`, {
+      await studioRequest(`/api/games/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'end-session', sessionId }),
@@ -424,7 +459,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handleSimulatePlayers = async (sessionId: number) => {
     try {
-      const res = await fetch(`/api/games/${slug}`, {
+      const res = await studioRequest(`/api/games/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'simulate-players', sessionId }),
@@ -443,7 +478,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
     if (!pollTitle.trim()) return;
 
     try {
-      await fetch(`/api/games/${slug}/interactions`, {
+      await studioRequest(`/api/games/${slug}/interactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -462,7 +497,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
 
   const handleModerateInteraction = async (id: number, status: 'aprovado' | 'rejeitado' | 'exibido') => {
     try {
-      await fetch(`/api/games/${slug}/interactions`, {
+      await studioRequest(`/api/games/${slug}/interactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'moderate', id, status }),
@@ -477,7 +512,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
   // 6. Direct Message Moderation
   const handleModerateMessage = async (messageId: number, status: 'aprovado' | 'exibido' | 'cancelado') => {
     try {
-      await fetch(`/api/screen/${slug}/messages`, {
+      await studioRequest(`/api/screen/${slug}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'moderate', messageId, status }),
@@ -494,7 +529,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
     if (!broadcastText.trim()) return;
 
     try {
-      await fetch(`/api/screen/${slug}/messages`, {
+      await studioRequest(`/api/screen/${slug}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -518,227 +553,74 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
   const tickerText = screenData?.settings?.broadcastTicker;
 
   return (
-    <div className="space-y-6">
+    <div className="studio-workspace space-y-5">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-2xl shadow-amber-500/30 animate-in fade-in slide-in-from-bottom-4">
+        <div className="studio-toast" role="status">
           <CheckCircle2 size={18} />
           {toast}
         </div>
       )}
 
-      {/* Top Command Bar */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900 border border-white/10 text-white shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Monitor size={24} />
-            </div>
-            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
-            </span>
-          </div>
+      <header className="studio-header">
+        <div className="studio-heading">
+          <span className="studio-heading-icon"><Monitor size={23} aria-hidden="true" /></span>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold tracking-tight">Estúdio Live 16:9</h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Sincronizado v{screenData?.settings?.version || 1}
-              </span>
-            </div>
-            <p className="text-xs text-neutral-400">
-              Cena no ar: <strong className="text-amber-400 uppercase">{currentScene}</strong> ·{' '}
-              {isPaused ? '⏸️ Congelado' : '▶️ Rotação ativa'}
-            </p>
+            <h1>Estúdio Live</h1>
+            <p>{screenData?.event?.title || 'Controlo do ecrã do evento'}</p>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => window.open(`/${slug}/screen`, '_blank')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs tracking-wide uppercase transition shadow-lg shadow-amber-500/20 cursor-pointer"
-            title="Abrir Ecrã 16:9 em Nova Janela para Ligar à TV"
-          >
-            <ExternalLink size={15} /> Abrir Ecrã na TV ↗
+        <div className="studio-header-actions">
+          <button type="button" className="studio-control" onClick={() => { setError(null); void loadStudioState(); }}>
+            <RefreshCw size={16} /> Atualizar
           </button>
-
-          <button
-            onClick={() => playSoundEffect('beep')}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-xs text-neutral-300 transition cursor-pointer"
-            title="Testar saída de áudio do estúdio"
-          >
-            <Volume2 size={14} className="text-amber-400" /> Teste Som
-          </button>
-
-          <button
-            onClick={() => handleToggleEmergency(!isEmergency)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
-              isEmergency
-                ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
-                : 'bg-rose-500/10 text-rose-300 border-rose-500/20 hover:bg-rose-500/20'
-            }`}
-          >
-            <AlertTriangle size={14} /> {isEmergency ? 'Desativar Alerta' : 'Alerta / Emergência'}
-          </button>
+          <a className="studio-control studio-accent" href={`/${slug}/screen`} target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={17} /> Abrir ecrã
+          </a>
         </div>
+      </header>
+      <div className="studio-status-row">
+        <span className="studio-sync" data-connected={syncMode === 'live'} aria-live="polite">
+          {loading ? 'A ligar…' : !screenData ? 'Ecrã indisponível' : syncMode === 'live' ? 'Ligação em direto' : 'Atualização periódica'}
+        </span>
+        {screenData && <span>No ar <strong>{sceneTitle(currentScene)}</strong></span>}
+        {screenData && <span>{isPaused ? 'Rotação em pausa' : screenData.settings?.autoRotate === false ? 'Rotação manual' : 'Rotação ativa'}</span>}
+        {isEmergency && <strong className="studio-alert-state">Alerta ativo</strong>}
       </div>
-
-      {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto">
-        {[
-          { id: 'monitor', label: '📺 Monitor & Linha Temporal', icon: Monitor },
-          { id: 'games', label: '🎮 Quiz Live & Competição', icon: Trophy, badge: activeSession ? 'SALA ATIVA' : null },
-          { id: 'interactions', label: '📊 Votações & Nuvem', icon: BarChart3 },
-          { id: 'messages', label: '💌 Dedicatórias & Anúncios', icon: MessageSquare, count: messages.filter(m => m.status === 'pendente').length },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
-                isActive
-                  ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Icon size={16} />
-              {tab.label}
-              {tab.badge && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500 text-slate-950 font-bold animate-pulse">
-                  {tab.badge}
-                </span>
-              )}
-              {Boolean(tab.count) && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-slate-950 font-bold">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {error && (
+        <div role="alert" className="studio-error">
+          <AlertTriangle size={18} /><span>{error}</span>
+          <button type="button" aria-label="Fechar erro" onClick={() => setError(null)}><X size={18} /></button>
+        </div>
+      )}
+      <nav className="studio-tabs" aria-label="Secções do Estúdio Live">
+        {([
+          { id: 'monitor', label: 'Monitor', icon: Monitor },
+          { id: 'games', label: 'Quiz', icon: Trophy, count: activeSession ? 'Ativo' : '' },
+          { id: 'interactions', label: 'Interações', icon: BarChart3 },
+          { id: 'messages', label: 'Mensagens', icon: MessageSquare, count: messages.filter(m => m.status === 'pendente').length || '' },
+        ] as const).map(({ id, label, icon: Icon, ...meta }) => (
+          <button key={id} type="button" aria-pressed={activeTab === id} onClick={() => setActiveTab(id)}>
+            <Icon size={17} aria-hidden="true" />{label}
+            {'count' in meta && meta.count && <b>{meta.count}</b>}
+          </button>
+        ))}
+      </nav>
 
       {/* TAB 1: MONITOR & TIMELINE */}
       {activeTab === 'monitor' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="studio-monitor-grid">
           {/* Left: 16:9 Mirror View & Staging */}
-          <div className="lg:col-span-7 space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="rounded-2xl bg-slate-900 border border-white/10 p-4 shadow-xl">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold tracking-wider text-neutral-400 uppercase flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                  Pré-visualização 16:9 em Tempo Real (NO AR)
-                </span>
-                <span className="text-xs text-amber-400 font-mono">
-                  {screenData?.event?.title || 'Eventox'} · {currentScene.toUpperCase()}
-                </span>
+              <div className="studio-panel-heading">
+                <h2>Prévia da transmissão</h2>
+                <span>{sceneTitle(currentScene)} · 16:9</span>
               </div>
-
-              {/* 16:9 Canvas Mirror Preview */}
-              <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border border-white/10 flex flex-col justify-between p-6 shadow-2xl">
-                {/* Background glow */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(217,119,6,0.15),transparent_70%)] pointer-events-none" />
-
-                {/* Top header preview */}
-                <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={16} className="text-amber-400" />
-                    <span className="text-xs font-serif tracking-widest text-amber-200 uppercase">
-                      {screenData?.event?.hostName || 'ANFITRIÃO'}
-                    </span>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-neutral-300">
-                    Sincronizado
-                  </span>
-                </div>
-
-                {/* Center content preview based on active scene */}
-                <div className="relative z-10 text-center my-auto py-4">
-                  {currentScene === 'welcome' && (
-                    <div className="space-y-2 animate-in fade-in">
-                      <p className="text-[10px] tracking-widest text-amber-400 uppercase">✦ SEJAM BEM-VINDOS ✦</p>
-                      <h3 className="text-2xl font-serif font-bold text-white tracking-tight">
-                        {screenData?.event?.title || 'Celebração Oficial'}
-                      </h3>
-                      <p className="text-xs text-neutral-400">{screenData?.event?.venue}</p>
-                    </div>
-                  )}
-
-                  {currentScene === 'countdown' && (
-                    <div className="space-y-2 animate-in fade-in">
-                      <p className="text-[10px] text-amber-400 uppercase tracking-widest">CONTAGEM REGRESSIVA OFICIAL</p>
-                      <div className="flex justify-center gap-3 text-white font-mono text-xl font-bold">
-                        <div className="p-2 rounded bg-white/5 border border-white/10">02<span className="text-[8px] block text-neutral-400">DIAS</span></div>
-                        <div className="p-2 rounded bg-white/5 border border-white/10">14<span className="text-[8px] block text-neutral-400">HORAS</span></div>
-                        <div className="p-2 rounded bg-white/5 border border-white/10">35<span className="text-[8px] block text-neutral-400">MIN</span></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentScene === 'quiz' && (
-                    <div className="space-y-2 animate-in fade-in">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-slate-950 font-bold">
-                        MODO JOGO AO VIVO
-                      </span>
-                      <h4 className="text-lg font-bold text-white">
-                        {activeSession ? `PIN DA SALA: ${activeSession.pin}` : 'Quiz Interativo dos Convidados'}
-                      </h4>
-                      <p className="text-xs text-neutral-400">
-                        {activeSession?.participantCount || 0} participantes ligados pelo telemóvel
-                      </p>
-                    </div>
-                  )}
-
-                  {currentScene === 'poll' && (
-                    <div className="space-y-2 animate-in fade-in">
-                      <span className="text-[10px] text-amber-400 uppercase tracking-widest">VOTAÇÃO EM DIRETO</span>
-                      <h4 className="text-lg font-bold text-white">Resultados das Votações</h4>
-                      <p className="text-xs text-neutral-400">A acompanhar escolhas das mesas em tempo real</p>
-                    </div>
-                  )}
-
-                  {currentScene === 'wordcloud' && (
-                    <div className="space-y-2 animate-in fade-in">
-                      <span className="text-[10px] text-amber-400 uppercase tracking-widest">NUVEM DE PALAVRAS</span>
-                      <h4 className="text-lg font-bold text-white">Dedicatórias em Palavras</h4>
-                      <div className="flex flex-wrap justify-center gap-2 text-xs">
-                        <span className="text-amber-400 text-sm font-bold">Sucesso</span>
-                        <span className="text-white text-xs">Orgulho</span>
-                        <span className="text-emerald-400 text-base font-bold">Exemplo</span>
-                        <span className="text-amber-300 text-xs">Brilhante</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {!['welcome', 'countdown', 'quiz', 'poll', 'wordcloud'].includes(currentScene) && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] text-amber-400 uppercase">{currentScene}</p>
-                      <h4 className="text-xl font-bold text-white capitalize">{currentScene.replace('_', ' ')}</h4>
-                      <p className="text-xs text-neutral-400">A exibir conteúdo multimédia selecionado</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bottom ticker preview */}
-                <div className="relative z-10 border-t border-white/10 pt-2 flex items-center justify-between text-[11px] text-neutral-400">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Radio size={12} className="text-emerald-400" />
-                    <span className="truncate">
-                      {tickerText ? (
-                        <strong className="text-amber-300 font-normal">📢 {tickerText}</strong>
-                      ) : (
-                        'Transmissão Eventox 2.0 HD'
-                      )}
-                    </span>
-                  </div>
-                  <span className="font-mono text-[10px] text-neutral-500">16:9 1080p</span>
-                </div>
-              </div>
+              <StudioPreview slug={slug} />
 
               {/* Playback & Staging Deck */}
-              <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+              <div className="studio-playback">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handlePrevScene}
@@ -768,27 +650,24 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
                 </div>
 
                 {/* Staging GO LIVE */}
-                <div className="flex items-center gap-2">
+                <div className="studio-stage-actions">
                   <select
+                    aria-label="Cena a preparar"
                     value={stagedSceneId}
-                    onChange={(e) => handleStageScene(e.target.value)}
+                    disabled={sceneBusy}
+                    onChange={event => handleStageScene(event.target.value)}
                     className="rounded-xl bg-slate-950 border border-white/15 px-3 py-1.5 text-xs text-white"
                   >
-                    <option value="welcome">Rascunho: Boas-vindas</option>
-                    <option value="countdown">Rascunho: Contagem Regressiva</option>
-                    <option value="arrivals">Rascunho: Chegadas</option>
-                    <option value="schedule">Rascunho: Programa</option>
-                    <option value="quiz">Rascunho: Quiz Live</option>
-                    <option value="poll">Rascunho: Votação Live</option>
-                    <option value="wordcloud">Rascunho: Nuvem de Palavras</option>
-                    <option value="gallery_mural">Rascunho: Galeria Mural</option>
+                    <option value="" disabled>Preparar cena</option>
+                    {sceneLibrary.map(scene => <option value={scene.id} key={scene.id}>{scene.title}</option>)}
                   </select>
 
                   <button
+                    disabled={sceneBusy || !stagedSceneId}
                     onClick={handlePublishStaged}
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wide transition cursor-pointer shadow-lg shadow-emerald-500/20"
                   >
-                    <Radio size={14} /> Enviar para o Ar
+                    <Radio size={14} /> Enviar para o ar
                   </button>
                 </div>
               </div>
@@ -797,7 +676,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
             {/* Breaking News Ticker Dispatcher */}
             <div className="rounded-2xl bg-slate-900 border border-white/10 p-4">
               <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                <span>📢 Ticker de Rodapé (Notícia / Alerta Marquee)</span>
+                <span>Mensagem no rodapé</span>
                 {tickerText && (
                   <button
                     onClick={handleClearTicker}
@@ -807,9 +686,10 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
                   </button>
                 )}
               </h4>
-              <form onSubmit={handleSendTicker} className="flex gap-2">
+              <form onSubmit={handleSendTicker} className="studio-inline-form">
                 <input
                   type="text"
+                  aria-label="Mensagem no rodapé"
                   value={tickerInput}
                   onChange={(e) => setTickerInput(e.target.value)}
                   placeholder="Ex: Jantar servido na Sala Principal · Brinde com os noivos às 21h..."
@@ -826,35 +706,17 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
           </div>
 
           {/* Right: Scene Library & Direct Triggers */}
-          <div className="lg:col-span-5 space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="rounded-2xl bg-slate-900 border border-white/10 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Palette size={16} className="text-amber-400" />
-                  Biblioteca de Cenas do Ecrã
-                </h3>
-                <span className="text-[11px] text-neutral-400">1 toque = NO AR</span>
-              </div>
-
+              <div className="studio-panel-heading"><h2>Cenas disponíveis</h2></div>
               <div className="space-y-2">
-                {[
-                  { id: 'welcome', title: 'Boas-vindas Oficial', desc: 'Monograma, anfitrião e dados do evento' },
-                  { id: 'countdown', title: 'Contagem Regressiva', desc: 'Relógio sincronizado para abertura ou brinde' },
-                  { id: 'arrivals', title: 'Boas-vindas aos Recém-Chegados', desc: 'Nomes dos convidados após check-in' },
-                  { id: 'quiz', title: 'Quiz Live Interativo', desc: 'Competição Kahoot com PIN e pódio' },
-                  { id: 'poll', title: 'Votações & Sondagens', desc: 'Gráficos de barras ao vivo das mesas' },
-                  { id: 'wordcloud', title: 'Nuvem de Palavras', desc: 'Dedicatórias em palavras agregadas' },
-                  { id: 'gallery_mural', title: 'Mural de Fotografias', desc: 'Slideshow dinâmico das fotos aprovadas' },
-                  { id: 'schedule', title: 'Programa & Momentos', desc: 'Linha temporal do cocktail ao corte do bolo' },
-                  { id: 'tribute', title: 'Homenagem Especial', desc: 'Momento solene com foto e citação' },
-                  { id: 'gratitude', title: 'Agradecimento & Encerramento', desc: 'Mensagem final de carinho aos convidados' },
-                ].map((s) => {
+                {sceneLibrary.map((s) => {
                   const isCurrent = currentScene === s.id;
                   const isStaged = stagedSceneId === s.id;
                   return (
                     <div
                       key={s.id}
-                      className={`p-3 rounded-xl border transition flex items-center justify-between ${
+                      className={`studio-scene p-3 rounded-xl border transition ${
                         isCurrent
                           ? 'bg-amber-500/15 border-amber-500/40 text-white'
                           : 'bg-white/5 border-white/5 text-neutral-300 hover:border-white/15'
@@ -877,14 +739,16 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
                         <p className="text-[11px] text-neutral-400">{s.desc}</p>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="studio-scene-actions">
                         <button
+                          disabled={sceneBusy || isStaged}
                           onClick={() => handleStageScene(s.id)}
                           className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] text-neutral-300 cursor-pointer"
                         >
                           Preparar
                         </button>
                         <button
+                          disabled={sceneBusy || isCurrent}
                           onClick={() => handlePublishScene(s.id)}
                           className={`px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer ${
                             isCurrent
@@ -892,7 +756,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
                               : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
                           }`}
                         >
-                          Lançar
+                          Enviar
                         </button>
                       </div>
                     </div>
@@ -900,6 +764,17 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
                 })}
               </div>
             </div>
+            <section className="studio-utility">
+              <h2>Som e alerta</h2>
+              <div className="studio-inline-form">
+                <button type="button" className="studio-control" onClick={() => playSoundEffect('beep')}>
+                  <Volume2 size={16} /> Testar som
+                </button>
+                <button type="button" className="studio-control studio-danger" onClick={() => handleToggleEmergency(!isEmergency)}>
+                  <AlertTriangle size={16} /> {isEmergency ? 'Desativar alerta' : 'Ativar alerta'}
+                </button>
+              </div>
+            </section>
           </div>
         </div>
       )}

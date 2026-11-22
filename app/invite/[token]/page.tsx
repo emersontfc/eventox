@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Sparkles, Shield, CheckCircle2, AlertCircle, ArrowRight, Lock, UserPlus } from 'lucide-react';
-import AuthModal from '../../../components/AuthModal';
 
 interface InvitationDetails {
   valid: boolean;
@@ -30,8 +29,6 @@ export default function InviteAcceptPage() {
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState<InvitationDetails | null>(null);
   const [accepting, setAccepting] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const loadDetails = async () => {
@@ -59,8 +56,7 @@ export default function InviteAcceptPage() {
       const data = await res.json() as { ok?: boolean; error?: string; slug?: string; requiresAuth?: boolean };
 
       if (res.status === 401 || data.requiresAuth) {
-        setAuthMode('login');
-        setAuthModalOpen(true);
+        router.push(`/conta?continuar=${encodeURIComponent(`/invite/${token}`)}`);
         return;
       }
 
@@ -159,6 +155,9 @@ export default function InviteAcceptPage() {
                   }}
                 >
                   {feedback.message}
+                  {feedback.type === 'error' && (
+                    <p><a href={`/conta?continuar=${encodeURIComponent(`/invite/${token}`)}`}>Entrar com outra conta</a></p>
+                  )}
                 </div>
               )}
 
@@ -174,7 +173,7 @@ export default function InviteAcceptPage() {
                 </button>
 
                 <p style={{ fontSize: '11px', color: '#9c8990', textAlign: 'center', margin: '6px 0 0' }}>
-                  Será solicitada a confirmação da tua conta para associar o acesso em segurança.
+                  Entra ou cria uma conta com o email indicado no convite.
                 </p>
               </div>
             </div>
@@ -182,14 +181,7 @@ export default function InviteAcceptPage() {
         </div>
       </main>
 
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        defaultMode={authMode}
-        onLoginSuccess={() => {
-          handleAccept();
-        }}
-      />
+
     </div>
   );
 }

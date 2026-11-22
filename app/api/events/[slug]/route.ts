@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '../../../../db';
 import { events, guestTables, guests, menuItems, playlist, galleryMedia, guestbookMessages } from '../../../../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
+import { EVENT_THEMES } from '../../../../lib/event-themes';
 import { isEventAdmin } from '../../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -307,6 +308,9 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       }
 
       const newTheme = String(body.theme || 'gala-gold').trim().toLowerCase();
+      if (!Object.hasOwn(EVENT_THEMES, newTheme)) {
+        return NextResponse.json({ error: 'Escolhe um tema disponível.' }, { status: 400 });
+      }
       await db.update(events).set({ coverTheme: newTheme }).where(eq(events.id, event.id));
 
       return NextResponse.json({ ok: true, theme: newTheme });

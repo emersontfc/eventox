@@ -7,6 +7,7 @@ import {
 } from '@/db/schema';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { getEventMembershipContext, logAuditAction, isEventAdmin } from '@/lib/auth';
+import { readProgram } from '@/lib/event-program-server';
 import { hasPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -233,6 +234,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       photos,
       quotes,
       recentArrivals: recentGuests,
+      program: settings.activeSceneId === 'schedule' ? (await readProgram(event.id, event.slug)).published : [],
       activeGameSession: activeGameSessionData,
       interactions: {
         wordCloud: wordCloudItems,
@@ -351,7 +353,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
     // 3. Publish staged scene to TV ("Enviar para o Ar")
     if (action === 'publish-staged') {
-      const targetScene = currentSettings?.stagedSceneId || 'welcome';
+      const targetScene = currentSettings?.stagedSceneId;
+      if (!targetScene) return NextResponse.json({ error: 'Prepara uma cena antes de a enviar.' }, { status: 409 });
       await db
         .update(screenSettings)
         .set({
