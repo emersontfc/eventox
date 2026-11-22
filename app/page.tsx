@@ -44,15 +44,14 @@ export default function HomePage() {
     <div className="home-portal-wrapper">
       {/* Top Navbar */}
       <header className="home-navbar">
-        <div className="home-brand" onClick={() => (window.location.href = '/')}>
+        <a className="home-brand" href="/" aria-label="EventoX, página inicial">
           <div className="home-brand-icon">
             <Sparkles size={22} />
           </div>
           <div>
             <strong>EVENTOX</strong>
-            <small>SISTEMA DE EVENTOS</small>
           </div>
-        </div>
+        </a>
 
         <div className="home-nav-links" style={{ display: 'flex', gap: '10px' }}>
           <button className="outline-pill" onClick={() => openAuth('login')}>
@@ -67,22 +66,20 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="home-hero">
         <div className="home-hero-content">
-          <span className="home-badge">✦ PLATAFORMA PROFISSIONAL DE EVENTOS & EXPERIÊNCIAS AO VIVO ✦</span>
           <h1>
-            Celebrações inesquecíveis,<br />
-            <strong>gestão e interacção em direto.</strong>
+            Organiza o teu evento<br />
+            <strong>do convite ao ecrã.</strong>
           </h1>
           <p className="home-hero-subtitle">
-            Cria o teu evento, gera o <strong>link de visualização oficial</strong> com QR Code para os teus convidados,
-            projeta o <strong>Estúdio Live 16:9 na TV</strong> com jogos interativos, quiz ao vivo e organiza mesas, RSVP e catering num só lugar.
+            Gere convidados, mesas e confirmações num só painel. Partilha o convite e controla o que aparece no ecrã com o <strong>Estúdio Live</strong>.
           </p>
 
           <div className="home-hero-actions">
             <button className="hero-cta-button" onClick={() => openAuth('register')}>
-              <Plus size={18} /> Criar Novo Evento Agora
+              <Plus size={18} /> Criar evento
             </button>
             <a className="hero-secondary-button" href="/conta">
-              <Lock size={16} /> Entrar na Minha Conta
+              <Lock size={16} /> Entrar na minha conta
             </a>
           </div>
 

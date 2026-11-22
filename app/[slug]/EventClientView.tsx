@@ -1384,6 +1384,7 @@ export default function EventClientView({
             </div>
             <EventThemeSelector
               currentTheme={currentTheme}
+              eventTitle={event.title}
               slug={event.slug}
               onThemeChanged={(t) => {
                 setCurrentTheme(t);

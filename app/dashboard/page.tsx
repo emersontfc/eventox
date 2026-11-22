@@ -279,7 +279,7 @@ export default function UserDashboardPage() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '20px' }}>
             {events.map((ev) => (
               <div
                 key={ev.id}
@@ -292,6 +292,8 @@ export default function UserDashboardPage() {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '16px',
+                  minWidth: 0,
+                  overflowWrap: 'anywhere',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -322,7 +324,7 @@ export default function UserDashboardPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: 'auto', paddingTop: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px', marginTop: 'auto', paddingTop: '6px' }}>
                   <button
                     onClick={() => router.push(`/${ev.slug}/organizar`)}
                     className="auth-submit-btn"
@@ -342,7 +344,7 @@ export default function UserDashboardPage() {
                   </a>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f6eff1', paddingTop: '10px', fontSize: '11px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'space-between', borderTop: '1px solid #f6eff1', paddingTop: '10px', fontSize: '11px' }}>
                   <a
                     href={`/${ev.slug}/screen/control`}
                     style={{ color: '#265b94', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}

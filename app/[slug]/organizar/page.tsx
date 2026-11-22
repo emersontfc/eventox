@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import AdminDashboard from '../../AdminDashboard';
 import { getEventMembershipContext, getCurrentUser } from '../../../lib/auth';
 
+export const metadata = { title: 'Painel do organizador', robots: { index: false, follow: false } };
+
 export const dynamic = 'force-dynamic';
 
 export default async function OrganizerPage({ params }: { params: Promise<{ slug: string }> }) {
