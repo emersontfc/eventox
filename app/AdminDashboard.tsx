@@ -1,17 +1,15 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  CalendarDays, Camera, Check, Clock3, Download, Edit3, GlassWater, Heart,
-  LayoutDashboard, MapPin, Menu, Music2, Plus, Search, Settings2, Sparkles,
-  Trash2, Users, UtensilsCrossed, ClipboardList, X, LogOut, ExternalLink,
-  Copy, CheckCheck, Link2, Share2, QrCode, type LucideIcon
+  CalendarDays, Check, Clock3, Download, Edit3, GlassWater, LayoutDashboard, MapPin,
+  Menu, Music2, Plus, Search, Settings2, Sparkles, Trash2, Users,
+  UtensilsCrossed, ClipboardList, X, LogOut, ExternalLink, Copy, CheckCheck, Link2,
+  type LucideIcon
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import Hospitality from './Hospitality';
 import GuestImport from './GuestImport';
 import Committee from './Committee';
-import Gallery from './Gallery';
-import Countdown from '../components/Countdown';
 
 type Table = { id: number; name: string; capacity: number };
 type Guest = { id: number; name: string; phone: string; tableId: number; seat: number; status: string; notes: string };
@@ -51,7 +49,7 @@ const statuses: Record<string, string> = {
 
 const blank: Guest = { id: 0, name: '', phone: '', tableId: 1, seat: 1, status: 'pendente', notes: '' };
 
-export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: string; onExit?: () => void }) {
+export default function AdminDashboard({ slug = 'emerson', onExit, onPreview }: { slug?: string; onExit?: () => void; onPreview?: () => void }) {
   const [data, setData] = useState<Data>(initial);
   const [tab, setTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -207,13 +205,6 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             </button>
           ))}
         </nav>
-        <div className="sidebar-foot" style={{ cursor: 'pointer' }} onClick={() => window.open(`/${slug}`, '_blank')}>
-          <ExternalLink size={18} />
-          <div>
-            <strong>Ver Portal Público ↗</strong>
-            <span>/{slug}</span>
-          </div>
-        </div>
       </aside>
 
       {menu && <div className="shade" onClick={() => setMenu(false)} />}
@@ -238,8 +229,11 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
             }[tab]}</span>
           </div>
           <div className="topright">
-            <span className="green-dot" />
-            <span>Painel Ativo</span>
+            {onPreview ? (
+              <button className="outline public-preview" onClick={onPreview}>Ver página pública</button>
+            ) : (
+              <a className="outline public-preview" href={`/${slug}`}>Ver página pública</a>
+            )}
             <button className="outline" style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={handleLogout} title="Sair do modo administrador">
               <LogOut size={15} /> Sair
             </button>
@@ -258,71 +252,59 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
 
           {tab === 'overview' && (
             <>
-              <div className="hero">
-                <div className="hero-copy">
-                  <span className="eyebrow">✦ GESTÃO & CELEBRAÇÃO</span>
-                  <p>Organização completa e controlo do evento em tempo real.</p>
-                  <h1>{data.settings.eventName}<span>.</span></h1>
-                  <p className="hero-description">
-                    {data.event?.description || 'Celebração com as pessoas que fazem parte desta grande história.'}
-                  </p>
-                  <div className="hero-meta">
+              <div className="dashboard-overview-head">
+                <h1>{eventDisplay}</h1>
+                <div className="dashboard-event-meta">
+                  {data.settings.eventDate && (
                     <span>
                       <CalendarDays size={17} />
-                      {new Date((data.settings.eventDate || '2026-12-11T14:00') + ':00+02:00').toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Maputo' })}
+                      {new Date(data.settings.eventDate + ':00+02:00').toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Maputo' })}
                     </span>
-                    <span>
-                      <MapPin size={17} />
-                      {data.settings.venue || 'Local a definir'}
-                    </span>
-                  </div>
+                  )}
+                  <span><MapPin size={17} /> {data.settings.venue || 'Local a definir'}</span>
                 </div>
-                <div className="hero-ornament">✺</div>
               </div>
 
-              <section className="count-card">
-                <span className="overline"><Clock3 size={16} /> CONTAGEM REGRESSIVA PARA O GRANDE DIA</span>
-                <Countdown date={data.settings.eventDate} />
-                <p>Cada segundo aproxima-nos de um momento inesquecível ✦</p>
-              </section>
-
-              <div className="section-head">
-                <div>
-                  <span className="overline">O EVENTO EM NÚMEROS</span>
-                  <h2>Panorama da celebração</h2>
-                </div>
-                <button onClick={() => go('guests')}>Ver convidados →</button>
-              </div>
-
-              <div className="metrics">
+              <div className="metrics dashboard-metrics">
                 {([
-                  ['Convidados registados', data.guests.length, 'lugares distribuídos', Users],
-                  ['Presenças confirmadas', yes, 'inclui chegadas registadas', Check],
-                  ['Aguardam resposta', pending, 'convites por confirmar', Clock3],
-                  ['Mesas configuradas', data.tables.length, 'distribuição espacial', UtensilsCrossed],
-                ] as [string, number, string, LucideIcon][]).map(([label, value, desc, Icon], i) => (
-                  <div className="metric" key={i}>
-                    <div className={'metric-icon color-' + i}><Icon size={22} /></div>
-                    <span>{label as string}</span>
-                    <strong>{String(value).padStart(2, '0')}</strong>
-                    <small>{desc as string}</small>
-                  </div>
-                ))}
+                  ['Convidados registados', data.guests.length, Users],
+                  ['Presenças confirmadas', yes, Check],
+                  ['Aguardam resposta', pending, Clock3],
+                  ['Mesas configuradas', data.tables.length, UtensilsCrossed],
+                ] as [string, number, LucideIcon][]).map(([label, value, Icon], i) => {
+                  const content = (
+                    <>
+                      <div className={'metric-icon color-' + i}><Icon size={22} /></div>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </>
+                  );
+                  return Icon === Clock3 ? (
+                    <button className="metric pending-metric" key={label} onClick={() => {
+                      setQuery('');
+                      setTableFilter(0);
+                      setStatusFilter('pendente');
+                      go('guests');
+                    }}>
+                      {content}
+                      <small>Ver convidados pendentes</small>
+                    </button>
+                  ) : <div className="metric" key={label}>{content}</div>;
+                })}
               </div>
 
               <div className="section-head">
                 <div>
-                  <span className="overline">DISTRIBUIÇÃO DOS CONVIDADOS</span>
                   <h2>Mesas do evento</h2>
                 </div>
-                <button onClick={() => go('tables')}>Gerir mesas →</button>
+                <button onClick={() => go('tables')}>Gerir mesas</button>
               </div>
 
               <div className="overview-grid">
                 {data.tables.map(t => {
                   const count = occupied(t.id).length;
                   return (
-                    <button className="table-summary" key={t.id} onClick={() => { setTableFilter(t.id); go('guests'); }}>
+                    <button className="table-summary" key={t.id} onClick={() => { setQuery(''); setStatusFilter('todos'); setTableFilter(t.id); go('guests'); }}>
                       <span className="table-number">{String(t.id).padStart(2, '0')}</span>
                       <div>
                         <strong>{t.name}</strong>
@@ -452,7 +434,7 @@ export default function AdminDashboard({ slug = 'emerson', onExit }: { slug?: st
                         <span><i /> Disponível</span>
                       </div>
                       <div className="bar"><i style={{ width: Math.min(100, (people.length / t.capacity) * 100) + '%' }} /></div>
-                      <button className="text-link" onClick={() => { setTableFilter(t.id); go('guests'); }}>Ver lista da mesa →</button>
+                      <button className="text-link" onClick={() => { setQuery(''); setStatusFilter('todos'); setTableFilter(t.id); go('guests'); }}>Ver lista da mesa →</button>
                     </div>
                   );
                 })}
