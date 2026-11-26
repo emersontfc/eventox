@@ -4,9 +4,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown, ArrowUp, Check, ClipboardList, ExternalLink, GlassWater,
   Minus, Music2, Package, Play, Plus, Search, Trash2, UtensilsCrossed,
-  X, Sandwich, Salad, CakeSlice, Wine
+  X, Sandwich, Salad, CakeSlice, Wine, List, Eye, EyeOff, Pencil
 } from 'lucide-react';
-import { menuCategories, menuCategory, type MenuCategory } from '../lib/menu-categories';
+import { menuCategories, menuGroups, menuCategory, type MenuCategory } from '../lib/menu-categories';
 import EmbeddedMusicPlayer from '../components/EmbeddedMusicPlayer';
 
 type Table = { id: number; name: string };
@@ -38,10 +38,13 @@ type Song = {
 };
 type Payload = { items: Item[]; orders: Order[]; songs: Song[] };
 
-const categoryIcons = { doce: CakeSlice, salgado: Sandwich, entrada: Salad, bebida: GlassWater, bar: Wine };
+const categoryIcons = {
+  entrada: Salad, prato_principal: UtensilsCrossed, salgado: Sandwich,
+  doce: CakeSlice, bebida: GlassWater, bar: Wine,
+};
 
 const blankItem: Item = {
-  id: 0, name: '', category: 'salgado', description: '', stock: 0, unit: 'unidade', available: true,
+  id: 0, name: '', category: 'prato_principal', description: '', stock: 0, unit: 'unidade', available: true,
 };
 
 const basketUnits = ['unidade', 'porção', 'prato', 'dose', 'buffet livre', 'fatia', 'tigela', 'travessa', 'garrafa', 'copo', 'taça', 'lata', 'litro'];
@@ -74,6 +77,7 @@ export default function Hospitality({
   const [songEdit, setSongEdit] = useState<Song | null>(null);
   const [category, setCategory] = useState<MenuCategory | 'todos'>('todos');
   const [search, setSearch] = useState('');
+  const [visibility, setVisibility] = useState('todos');
   const [orderTable, setOrderTable] = useState(1);
   const [orderItem, setOrderItem] = useState(0);
   const [qty, setQty] = useState(1);
@@ -116,11 +120,13 @@ export default function Hospitality({
   };
 
   const products = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('pt');
+    const normalize = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt');
+    const query = normalize(search.trim());
     return data.items.filter(item =>
       (category === 'todos' || menuCategory(item.category).id === category) &&
-      `${item.name} ${item.description}`.toLocaleLowerCase('pt').includes(query));
-  }, [data.items, category, search]);
+      (visibility === 'todos' || (visibility === 'visiveis' ? item.available : !item.available)) &&
+      normalize(`${item.name} ${item.description}`).includes(query));
+  }, [data.items, category, search, visibility]);
 
   const ordered = useMemo(() => {
     return data.orders
@@ -141,10 +147,16 @@ export default function Hospitality({
   const nameOf = (id: number) => data.items.find((p) => p.id === id)?.name || 'Produto removido';
   const tableOf = (id: number) => tables.find((t) => t.id === id)?.name || `Mesa ${id}`;
 
-  const currentMeta = menuCategory(itemEdit?.category ?? 'salgado');
-  const selectedGroups = menuCategories.filter(group => category === 'todos' || group.id === category);
+  const currentMeta = menuCategory(itemEdit?.category ?? blankItem.category);
+  const selectedCategory = category === 'todos' ? null : menuCategory(category);
+  const hasFilters = Boolean(search.trim()) || visibility !== 'todos';
+  const counts = new Map<MenuCategory, number>();
+  for (const item of data.items) {
+    const id = menuCategory(item.category).id;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
 
-  function addItem(initialCategory: MenuCategory = category === 'todos' ? 'salgado' : category) {
+  function addItem(initialCategory = selectedCategory?.id ?? 'prato_principal') {
     setItemEdit({ ...blankItem, category: initialCategory });
   }
 
@@ -169,70 +181,129 @@ export default function Hospitality({
       {loading && <p className="loading">A carregar informações…</p>}
 
       {mode === 'menu' && (
-        <section>
-          <div className="page-head menu-management-heading">
-            <div><h1>Cardápio e bar</h1><p>Organiza o stock e escolhe o que aparece no convite.</p></div>
-            <button className="primary" type="button" onClick={() => addItem()}><Plus size={17} /> Adicionar item</button>
-          </div>
+        <section className="menu-inventory">
+          <header className="menu-inventory-head">
+            <div>
+              <h1>Cardápio e bar</h1>
+              <p>Gere o stock e escolhe o que os convidados veem.</p>
+            </div>
+            <button className="primary" type="button" onClick={() => addItem()}><Plus size={18} /> Adicionar item</button>
+          </header>
 
-          <div className="menu-management-toolbar">
-            <div className="desk-tabs" role="group" aria-label="Categorias do cardápio">
+          <div className="menu-inventory-layout">
+            <nav className="menu-index" aria-label="Categorias do cardápio">
               <button type="button" aria-pressed={category === 'todos'} onClick={() => setCategory('todos')}>
-                Todos <b>{data.items.length}</b>
+                <List size={17} aria-hidden="true" /><span>Todos os itens</span><b>{data.items.length}</b>
               </button>
-              {menuCategories.map(({ id, label }) => (
-                <button type="button" key={id} aria-pressed={category === id} onClick={() => setCategory(id)}>
-                  {label} <b>{data.items.filter(item => menuCategory(item.category).id === id).length}</b>
-                </button>
-              ))}
-            </div>
-            <label className="desk-search">
-              <Search size={18} aria-hidden="true" />
-              <input aria-label="Pesquisar no cardápio" value={search} placeholder="Pesquisar por nome ou ingrediente"
-                onChange={event => setSearch(event.target.value)} />
-            </label>
-          </div>
-
-          {selectedGroups.map(group => {
-            const items = products.filter(item => menuCategory(item.category).id === group.id);
-            if (!items.length) return null;
-            const Icon = categoryIcons[group.id];
-            return (
-              <section className="menu-management-group" key={group.id}>
-                <h2><Icon size={19} aria-hidden="true" /> {group.label}</h2>
-                <div className="h-products">
-                  {items.map(item => (
-                    <article className="h-product" key={item.id}>
-                      <div className="h-prod-copy">
-                        <h3>{item.name}</h3>
-                        {item.description && <p>{item.description}</p>}
-                        <div className="menu-product-status">
-                          <span className={`h-stock ${item.stock === 0 ? 'out' : item.stock <= 5 ? 'low' : ''}`}>
-                            {item.stock} {item.unit}{item.stock === 0 ? ' · Esgotado' : item.stock <= 5 ? ' · Stock baixo' : ''}
-                          </span>
-                          <span>{item.available ? 'Visível no convite' : 'Oculto'}</span>
-                        </div>
-                      </div>
-                      <div className="h-prod-actions">
-                        <button type="button" onClick={() => setItemEdit({ ...item, category: group.id })}>Editar</button>
-                        <button type="button" aria-label={`Eliminar ${item.name}`} onClick={() => {
-                          if (confirm(`Remover "${item.name}" do cardápio?`)) void act({ action: 'item-delete', id: item.id });
-                        }}><Trash2 size={17} /></button>
-                      </div>
-                    </article>
-                  ))}
+              {menuGroups.map(group => (
+                <div className="menu-index-group" key={group.id}>
+                  <h2>{group.label}</h2>
+                  {menuCategories.filter(option => option.group === group.id).map(({ id, label }) => {
+                    const Icon = categoryIcons[id];
+                    return (
+                      <button type="button" key={id} aria-pressed={category === id} onClick={() => setCategory(id)}>
+                        <Icon size={17} aria-hidden="true" /><span>{label}</span><b>{counts.get(id) ?? 0}</b>
+                      </button>
+                    );
+                  })}
                 </div>
-              </section>
-            );
-          })}
+              ))}
+            </nav>
 
-          {!products.length && !loading && (
-            <div className="empty">
-              <h2>{search.trim() ? 'Nenhum item encontrado' : category === 'todos' ? 'O cardápio ainda está vazio' : 'Sem itens nesta categoria'}</h2>
-              {search.trim() ? <button type="button" className="outline" onClick={() => setSearch('')}>Limpar pesquisa</button>
-                : <button type="button" className="outline" onClick={() => addItem()}>Adicionar item</button>}
+            <div className="menu-inventory-content">
+              <div className="menu-inventory-filters">
+                <label className="field menu-category-select">Categoria
+                  <select aria-label="Categoria" value={category} onChange={event => setCategory(event.target.value as MenuCategory | 'todos')}>
+                    <option value="todos">Todos os itens</option>
+                    {menuGroups.map(group => (
+                      <optgroup key={group.id} label={group.label}>
+                        {menuCategories.filter(option => option.group === group.id).map(({ id, label }) => (
+                          <option value={id} key={id}>{label} ({counts.get(id) ?? 0})</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">Pesquisa
+                  <div className="menu-inventory-search">
+                    <Search size={17} aria-hidden="true" />
+                    <input aria-label="Pesquisar no cardápio" value={search} placeholder="Nome ou ingrediente"
+                      onChange={event => setSearch(event.target.value)} />
+                  </div>
+                </label>
+                <label className="field">No convite
+                  <select aria-label="Visibilidade no convite" value={visibility} onChange={event => setVisibility(event.target.value)}>
+                    <option value="todos">Visíveis e ocultos</option>
+                    <option value="visiveis">Só visíveis</option>
+                    <option value="ocultos">Só ocultos</option>
+                  </select>
+                </label>
+              </div>
+
+              {menuGroups.map(menuGroup => {
+                const sections = menuCategories.filter(option => option.group === menuGroup.id &&
+                  products.some(item => menuCategory(item.category).id === option.id));
+                if (!sections.length) return null;
+                return (
+                  <section className="menu-inventory-group" key={menuGroup.id}>
+                    <h2>{menuGroup.label}</h2>
+                    {sections.map(section => {
+                      const items = products.filter(item => menuCategory(item.category).id === section.id);
+                      return (
+                        <section className="menu-inventory-category" key={section.id}>
+                          <header><h3>{section.label}</h3><span>{items.length} {items.length === 1 ? 'item' : 'itens'}</span></header>
+                          <ul>
+                            {items.map(item => {
+                              const stockState = item.stock === 0 ? 'empty' : item.stock <= 5 ? 'low' : 'normal';
+                              return (
+                                <li className="menu-inventory-row" key={item.id}>
+                                  <div className="menu-inventory-item">
+                                    <h4>{item.name}</h4>
+                                    {item.description && <p>{item.description}</p>}
+                                  </div>
+                                  <div className="menu-inventory-details">
+                                    <span className="menu-inventory-stock" data-state={stockState}>
+                                      {item.stock} {item.unit}
+                                      {stockState !== 'normal' && <small>{stockState === 'empty' ? 'Esgotado' : 'Stock baixo'}</small>}
+                                    </span>
+                                    <span className="menu-inventory-visibility" data-visible={item.available}>
+                                      {item.available ? <Eye size={15} aria-hidden="true" /> : <EyeOff size={15} aria-hidden="true" />}
+                                      {item.available ? 'Visível' : 'Oculto'}
+                                    </span>
+                                  </div>
+                                  <div className="menu-inventory-actions">
+                                    <button type="button" className="outline" aria-label={`Editar ${item.name}`}
+                                      onClick={() => setItemEdit({ ...item, category: section.id })}><Pencil size={15} /> Editar</button>
+                                    <button type="button" className="outline" aria-label={`Eliminar ${item.name}`} onClick={() => {
+                                      if (confirm(`Remover "${item.name}" do cardápio?`)) void act({ action: 'item-delete', id: item.id });
+                                    }}><Trash2 size={16} /></button>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </section>
+                      );
+                    })}
+                  </section>
+                );
+              })}
+
+              {!products.length && !loading && (
+                <div className="menu-inventory-empty">
+                  <h2>{hasFilters ? 'Nenhum item encontrado' : selectedCategory?.label ?? 'O cardápio ainda está vazio'}</h2>
+                  {hasFilters ? <button type="button" className="outline" onClick={() => {
+                    setSearch(''); setVisibility('todos');
+                  }}>Limpar filtros</button> : (
+                    <>
+                      {selectedCategory && <p>Esta categoria ainda está vazia.</p>}
+                      <button type="button" className="outline" onClick={() => addItem()}>Adicionar item</button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </section>
       )}
 
@@ -285,10 +356,10 @@ export default function Hospitality({
                   Item do Cardápio (Comida ou Bebida)
                   <select required value={orderItem} onChange={(e) => setOrderItem(+e.target.value)}>
                     <option value={0}>Seleciona o item do pedido...</option>
-                    {menuCategories.map(({ id, label }) => {
+                    {menuCategories.map(({ id, label, group }) => {
                       const items = available.filter(item => menuCategory(item.category).id === id);
                       return items.length > 0 && (
-                        <optgroup label={label} key={id}>
+                        <optgroup label={`${menuGroups.find(option => option.id === group)?.label} · ${label}`} key={id}>
                           {items.map(item => (
                             <option key={item.id} value={item.id}>{item.name} · {item.stock} {item.unit}</option>
                           ))}
@@ -544,8 +615,14 @@ export default function Hospitality({
                   onChange={event => setItemEdit({ ...itemEdit, name: event.target.value })} />
               </label>
               <label className="field full">Categoria
-                <select value={currentMeta.id} onChange={event => setItemEdit({ ...itemEdit, category: event.target.value })}>
-                  {menuCategories.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
+                <select aria-label="Categoria" value={currentMeta.id} onChange={event => setItemEdit({ ...itemEdit, category: event.target.value })}>
+                  {menuGroups.map(group => (
+                    <optgroup key={group.id} label={group.label}>
+                      {menuCategories.filter(option => option.group === group.id).map(({ id, label }) => (
+                        <option key={id} value={id}>{label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </label>
               <label className="field">Quantidade em stock
