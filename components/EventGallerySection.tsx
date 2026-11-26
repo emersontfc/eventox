@@ -11,6 +11,7 @@ export interface GalleryPhoto {
   url: string;
   uploader: string;
   album: string;
+  status?: string;
   mime?: string;
   originalName?: string;
   createdAt: string;

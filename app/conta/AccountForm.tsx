@@ -18,7 +18,7 @@ export default function AccountForm({ destination, create }: { destination: stri
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       });
-      const data = await response.json();
+      const data = (await response.json()) as any;
       if (!response.ok) throw new Error(data.error);
       window.location.assign(destination);
     } catch (failure) {

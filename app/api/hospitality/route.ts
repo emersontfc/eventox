@@ -99,6 +99,52 @@ export async function POST(req: Request) {
       const history = await db.select({ id: orders.id }).from(orders).where(and(eq(orders.itemId, id), eq(orders.eventId, eventId))).limit(1);
       if (history.length) return fail('Este produto tem pedidos associados. Desativa-o para preservar o histórico.');
       await db.delete(menuItems).where(and(eq(menuItems.id, id), eq(menuItems.eventId, eventId)));
+    } else if (action === 'item-toggle') {
+      const id = idOf(body.id);
+      if (!validId(id)) return fail('Produto inválido');
+      const [item] = await db.select({ id: menuItems.id, available: menuItems.available }).from(menuItems).where(and(eq(menuItems.id, id), eq(menuItems.eventId, eventId))).limit(1);
+      if (!item) return fail('Produto não encontrado');
+      await db.update(menuItems).set({ available: !item.available }).where(eq(menuItems.id, id));
+      return NextResponse.json({ ok: true, available: !item.available });
+    } else if (action === 'item-adjust-stock') {
+      const id = idOf(body.id);
+      const delta = Number(body.delta);
+      if (!validId(id) || !Number.isInteger(delta)) return fail('Parâmetros inválidos');
+      const [item] = await db.select({ id: menuItems.id, stock: menuItems.stock }).from(menuItems).where(and(eq(menuItems.id, id), eq(menuItems.eventId, eventId))).limit(1);
+      if (!item) return fail('Produto não encontrado');
+      const newStock = Math.max(0, item.stock + delta);
+      await db.update(menuItems).set({ stock: newStock }).where(eq(menuItems.id, id));
+      return NextResponse.json({ ok: true, stock: newStock });
+    } else if (action === 'load-gala-menu') {
+      const galaDefaults = [
+        { name: 'Tártaro de Salmão com Abacate & Citrinos', category: 'entrada', stock: 120, unit: 'porção', description: 'Salmão fresco finamente cortado, cubos de abacate maduro, vinagrete de citrinos frescos e emulsão de ervas finas com tostas crocantes.' },
+        { name: 'Bruschettas Mediterrânicas de Tomate Cereja', category: 'entrada', stock: 150, unit: 'porção (3 unid)', description: 'Pão rústico artesanal com tomate cereja confitado, manjericão fresco, alho suave, azeite virgem extra e redução balsâmica.' },
+        { name: 'Tábua de Queijos Nobres & Charcutaria Fina', category: 'entrada', stock: 80, unit: 'tábua', description: 'Seleção requintada de queijo manchego, brie e gouda trufado, presunto serrano, nozes caramelizadas e compotas de figo.' },
+        { name: 'Lombo de Novilho em Crosta de Ervas Finas', category: 'prato_principal', stock: 140, unit: 'prato', description: 'Carne tenra de novilho grelhada no ponto ideal, envolvida em crosta aromática com molho de vinho do Porto e batata dauphinoise.' },
+        { name: 'Robalo Selvagem na Chapa com Risotto de Limão', category: 'prato_principal', stock: 110, unit: 'prato', description: 'Filete de robalo selvagem selado na manteiga de tomilho, servido sobre risotto cremoso de limão siciliano e espargos verdes.' },
+        { name: 'Ravioli de Cogumelos Selvagens com Creme de Trufa', category: 'prato_principal', stock: 75, unit: 'prato', description: 'Massa fresca artesanal recheada com cogumelos boletus e porto belo, envolvida em creme de trufa negra e parmesão envelhecido.' },
+        { name: 'Chamuças Artesanais com Chutney de Manga', category: 'salgado', stock: 200, unit: 'porção (4 unid)', description: 'Triângulos crocantes recheados com frango estufado com especiarias orientais suaves, servidos com chutney caseiro de manga.' },
+        { name: 'Rissóis Dourados de Camarão da Costa', category: 'salgado', stock: 200, unit: 'porção (4 unid)', description: 'Massa fina e estaladiça com recheio cremoso e generoso de camarão da costa e toque de coentros frescos.' },
+        { name: 'Bolo Solene de Gala Red Velvet & Frutos Silvestres', category: 'doce', stock: 180, unit: 'fatia de honra', description: 'O bolo solene do corte de honra da festa: massa aveludada red velvet, recheio de cream cheese suave e cobertura generosa de frutos frescos.' },
+        { name: 'Petit Gâteau de Chocolate Belga com Gelado', category: 'doce', stock: 90, unit: 'dose', description: 'Bolo quente com coração derretido de puro chocolate belga a 70%, servido com gelado de baunilha de Madagáscar e crocante de amêndoa.' },
+        { name: 'Mousse Aveludada de Maracujá Fresco com Merengue', category: 'doce', stock: 95, unit: 'taça', description: 'Creme leve e sedoso preparado com polpa natural de maracujá, finalizado com suspiro tostado e raspas de chocolate branco.' },
+        { name: 'Espumante Brut de Honra & Champagne', category: 'bar', stock: 60, unit: 'garrafa', description: 'Servido para o brinde solene oficial de abertura e corte do bolo. Bolha fina, aroma frutado e frescura incomparável.' },
+        { name: 'Cocktail de Assinatura "Eventox Gold"', category: 'bar', stock: 150, unit: 'copo balão', description: 'Gin premium importado, xarope de flor de sabugueiro, citrinos frescos, água tónica premium e flocos de ouro comestível.' },
+        { name: 'Vinhos Tintos & Brancos Reserva Selecionada', category: 'bar', stock: 100, unit: 'garrafa', description: 'Garrafeira selecionada especialmente para a celebração: tintos encorpados e brancos aromáticos com perfil harmonioso.' },
+        { name: 'Águas Aromatizadas, Sumos Naturais & Bar Livre', category: 'bebida', stock: 300, unit: 'serviço contínuo', description: 'Estação contínua com sumos naturais de fruta, águas aromatizadas com hortelã e pepino, refrigerantes e cervejas.' },
+      ];
+      for (const item of galaDefaults) {
+        await db.insert(menuItems).values({
+          eventId,
+          name: item.name,
+          category: item.category,
+          stock: item.stock,
+          unit: item.unit,
+          description: item.description,
+          available: true,
+        });
+      }
+      return NextResponse.json({ ok: true, count: galaDefaults.length });
     } else if (action === 'order-create') {
       const tableId = idOf(body.tableId), itemId = idOf(body.itemId), quantity = idOf(body.quantity);
       if (!validId(tableId) || !validId(itemId) || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) return fail('Mesa, produto ou quantidade inválidos.');

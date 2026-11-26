@@ -103,7 +103,17 @@ const navigation = [
   ] },
 ];
 
-export default function AdminDashboard({ slug, role, permissions }: { slug: string; role: string; permissions: string[] }) {
+export default function AdminDashboard({
+  slug,
+  role = 'admin',
+  permissions = ['*'],
+  onExit,
+}: {
+  slug: string;
+  role?: string;
+  permissions?: string[];
+  onExit?: () => void;
+}) {
   const can = (permission: string) => hasPermission(role, permissions, permission);
   const [data, setData] = useState<Data>(initial);
   const [tab, setTab] = useState(() => can('event:manage')
@@ -115,7 +125,7 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const [saving, setSaving] = useState(false);
   const [menu, setMenu] = useState(false);
   const navigationDialog = useRef<HTMLDialogElement>(null);
-  const panelContent = useRef<HTMLMainElement>(null);
+  const panelContent = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const dialog = navigationDialog.current;
@@ -374,9 +384,15 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
             <div><small>{eventDisplay}</small><strong>{sectionName}</strong></div>
           </div>
           <div className="organizer-header-actions">
-            <a className="organizer-header-action" href={`/${slug}`} aria-label="Ver como convidado" title="Ver como convidado">
-              <Eye size={18} aria-hidden="true" /><span>Ver convite</span>
-            </a>
+            {onExit ? (
+              <button type="button" className="organizer-header-action" onClick={onExit} aria-label="Ver como convidado" title="Ver como convidado">
+                <Eye size={18} aria-hidden="true" /><span>Ver convite</span>
+              </button>
+            ) : (
+              <a className="organizer-header-action" href={`/${slug}`} aria-label="Ver como convidado" title="Ver como convidado">
+                <Eye size={18} aria-hidden="true" /><span>Ver convite</span>
+              </a>
+            )}
             {can('screen:control') && (
               <a className="organizer-header-action" href={`/${slug}/screen`} target="_blank" rel="noopener noreferrer"
                 aria-label="Abrir ecrã do evento" title="Abrir ecrã do evento">

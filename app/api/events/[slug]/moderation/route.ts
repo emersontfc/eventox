@@ -36,7 +36,7 @@ export async function PATCH(request: Request, context: Context) {
   const access = await moderator(context);
   if (!access) return NextResponse.json({ error: 'Sem permissão para moderar.' }, { status: 403 });
 
-  const body = await request.json().catch(() => null);
+  const body = (await request.json().catch(() => null)) as Record<string, any> | null;
   if (!body || !['photos', 'messages'].includes(body.kind) ||
       !Number.isSafeInteger(body.id) || body.id < 1 ||
       !['approve', 'hide', 'feature', 'unfeature'].includes(body.action)) {

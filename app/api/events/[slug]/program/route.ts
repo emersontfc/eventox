@@ -25,7 +25,7 @@ export async function PUT(request: Request, context: Context) {
   const event = await editableEvent(context);
   if (!event) return NextResponse.json({ error: 'Acesso reservado à organização.' }, { status: 403 });
 
-  const body = await request.json().catch(() => null);
+  const body = (await request.json().catch(() => null)) as Record<string, any> | null;
   if (!Array.isArray(body?.items) || body.items.length > 60 ||
       !body.items.every((item: any) => item && typeof item.time === 'string' &&
         /^([01]\d|2[0-3]):[0-5]\d$/.test(item.time) &&

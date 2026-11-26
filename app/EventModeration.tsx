@@ -18,7 +18,7 @@ export default function EventModeration({ slug }: { slug: string }) {
     const controller = new AbortController();
     fetch(endpoint, { signal: controller.signal, cache: 'no-store' })
       .then(async response => {
-        const data = await response.json();
+        const data = (await response.json()) as any;
         if (!response.ok) throw new Error(data.error);
         setQueue(data);
       })
@@ -35,7 +35,7 @@ export default function EventModeration({ slug }: { slug: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, kind, action }),
       });
-      const data = await response.json();
+      const data = (await response.json()) as any;
       if (!response.ok) throw new Error(data.error);
       setQueue(previous => previous && ({
         ...previous,

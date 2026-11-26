@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown, ArrowUp, Check, ClipboardList, ExternalLink, GlassWater,
   Minus, Music2, Package, Play, Plus, Search, Trash2, UtensilsCrossed,
-  X, Sandwich, Salad, CakeSlice, Wine, List, Eye, EyeOff, Pencil
+  X, Sandwich, Salad, CakeSlice, Wine, List, Eye, EyeOff, Pencil, Sparkles
 } from 'lucide-react';
 import { menuCategories, menuGroups, menuCategory, type MenuCategory } from '../lib/menu-categories';
 import EmbeddedMusicPlayer from '../components/EmbeddedMusicPlayer';
@@ -187,7 +187,22 @@ export default function Hospitality({
               <h1>Cardápio e bar</h1>
               <p>Gere o stock e escolhe o que os convidados veem.</p>
             </div>
-            <button className="primary" type="button" onClick={() => addItem()}><Plus size={18} /> Adicionar item</button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {data.items.length === 0 && (
+                <button
+                  type="button"
+                  className="btn-seed-gala"
+                  onClick={async () => {
+                    if (confirm('Carregar a seleção recomendada de 15 itens gastronómicos de gala?')) {
+                      await act({ action: 'load-gala-menu' });
+                    }
+                  }}
+                >
+                  <Sparkles size={16} /> Carregar Menu de Gala (15 itens)
+                </button>
+              )}
+              <button className="primary" type="button" onClick={() => addItem()}><Plus size={18} /> Adicionar item</button>
+            </div>
           </header>
 
           <div className="menu-inventory-layout">
@@ -262,14 +277,38 @@ export default function Hospitality({
                                     {item.description && <p>{item.description}</p>}
                                   </div>
                                   <div className="menu-inventory-details">
-                                    <span className="menu-inventory-stock" data-state={stockState}>
-                                      {item.stock} {item.unit}
-                                      {stockState !== 'normal' && <small>{stockState === 'empty' ? 'Esgotado' : 'Stock baixo'}</small>}
-                                    </span>
-                                    <span className="menu-inventory-visibility" data-visible={item.available}>
+                                    <div className="menu-inventory-stock-stepper">
+                                      <button
+                                        type="button"
+                                        title="Diminuir stock"
+                                        aria-label="Diminuir stock"
+                                        onClick={() => void act({ action: 'item-adjust-stock', id: item.id, delta: -1 })}
+                                      >
+                                        –
+                                      </button>
+                                      <span className="menu-inventory-stock" data-state={stockState}>
+                                        {item.stock} {item.unit}
+                                        {stockState !== 'normal' && <small>{stockState === 'empty' ? 'Esgotado' : 'Stock baixo'}</small>}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        title="Aumentar stock"
+                                        aria-label="Aumentar stock"
+                                        onClick={() => void act({ action: 'item-adjust-stock', id: item.id, delta: 1 })}
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="menu-inventory-visibility"
+                                      data-visible={item.available}
+                                      title={item.available ? 'Visível no convite. Clique para ocultar.' : 'Oculto no convite. Clique para tornar visível.'}
+                                      onClick={() => void act({ action: 'item-toggle', id: item.id })}
+                                    >
                                       {item.available ? <Eye size={15} aria-hidden="true" /> : <EyeOff size={15} aria-hidden="true" />}
                                       {item.available ? 'Visível' : 'Oculto'}
-                                    </span>
+                                    </button>
                                   </div>
                                   <div className="menu-inventory-actions">
                                     <button type="button" className="outline" aria-label={`Editar ${item.name}`}
@@ -297,7 +336,22 @@ export default function Hospitality({
                   }}>Limpar filtros</button> : (
                     <>
                       {selectedCategory && <p>Esta categoria ainda está vazia.</p>}
-                      <button type="button" className="outline" onClick={() => addItem()}>Adicionar item</button>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+                        <button type="button" className="outline" onClick={() => addItem()}>Adicionar item</button>
+                        {data.items.length === 0 && (
+                          <button
+                            type="button"
+                            className="btn-seed-gala"
+                            onClick={async () => {
+                              if (confirm('Carregar a seleção recomendada de 15 itens gastronómicos de gala?')) {
+                                await act({ action: 'load-gala-menu' });
+                              }
+                            }}
+                          >
+                            <Sparkles size={16} /> Carregar Menu de Gala (15 itens)
+                          </button>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>

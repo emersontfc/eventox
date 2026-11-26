@@ -3760,66 +3760,577 @@ body:has(.organizer-drawer[open]) {
   .menu-inventory-item { grid-column: 1 / -1; }
 }
 
+/* Quick stock stepper & interactive visibility in inventory */
+.menu-inventory-stock-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fdfafd;
+  border: 1px solid #e5d8df;
+  border-radius: 8px;
+  padding: 3px 6px;
+}
+.menu-inventory-stock-stepper button {
+  width: 24px;
+  height: 24px;
+  min-height: 24px !important;
+  padding: 0 !important;
+  border: 1px solid #d8c4cf;
+  background: #fff;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #62263b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.menu-inventory-stock-stepper button:hover {
+  background: #62263b;
+  color: #fff;
+  border-color: #62263b;
+}
+button.menu-inventory-visibility {
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+button.menu-inventory-visibility:hover {
+  filter: brightness(0.93);
+  transform: translateY(-1px);
+}
+.btn-seed-gala {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #fffdf8;
+  border: 1.5px solid #d4af37;
+  color: #8b6b15;
+  border-radius: 9px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-seed-gala:hover {
+  background: #b8860b;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(184, 134, 11, 0.25);
+}
+
+/* ===================================================
+   CARDÁPIO PREMIUM & ALTA GASTRONOMIA (UI/UX 2.0)
+   =================================================== */
 .public-menu {
-  max-width: 940px;
+  max-width: 1040px;
   margin-inline: auto;
 }
 
-.public-menu-heading { text-align: center; margin-bottom: 14px; }
-.public-menu-heading h2 { margin: 0; font-size: clamp(1.55rem, 4vw, 2.25rem); }
-.public-menu-empty { text-align: center; color: var(--portal-text-secondary); }
+.public-menu-heading {
+  text-align: center;
+  margin-bottom: 22px;
+}
+.public-menu-heading h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  color: var(--portal-text-primary);
+}
+.public-menu-heading p {
+  color: var(--portal-text-secondary);
+  font-size: 13.5px;
+  max-width: 600px;
+  margin: 6px auto 0;
+  line-height: 1.6;
+}
 
-.public-menu-filters {
+/* Banquet Service Moments Timeline */
+.menu-banquet-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  background: var(--portal-surface);
+  border: 1px solid var(--portal-border-subtle);
+  border-radius: 18px;
+  padding: 16px 20px;
+  margin-bottom: 28px;
+  box-shadow: var(--portal-card-shadow);
+  backdrop-filter: blur(14px);
+}
+.banquet-moment-box {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(212, 175, 55, 0.12);
+  transition: all 0.2s ease;
+}
+.banquet-moment-box:hover {
+  border-color: rgba(212, 175, 55, 0.35);
+  background: rgba(212, 175, 55, 0.05);
+}
+.banquet-moment-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(212, 175, 55, 0.12);
+}
+.banquet-moment-info strong {
+  display: block;
+  font-size: 13px;
+  color: var(--portal-text-primary);
+  line-height: 1.2;
+}
+.banquet-moment-info small {
+  display: block;
+  font-size: 11px;
+  color: var(--portal-accent);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+/* Menu Filter Toolbar & Search */
+.menu-controls-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+.menu-search-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.menu-search-box {
+  position: relative;
+  flex: 1;
+}
+.menu-search-box input {
+  width: 100%;
+  padding: 13px 42px 13px 44px;
+  border-radius: 14px;
+  background: var(--portal-surface);
+  border: 1.5px solid var(--portal-border-subtle);
+  color: var(--portal-text-primary);
+  font-size: 13.5px;
+  outline: none;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(12px);
+}
+.menu-search-box input:focus {
+  border-color: #d4af37;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+}
+.menu-search-box .search-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--portal-text-secondary);
+  pointer-events: none;
+}
+.menu-search-box .clear-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.06);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--portal-text-secondary);
+  cursor: pointer;
+}
+
+/* Category Navigation Pills */
+.menu-category-nav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+.menu-category-nav::-webkit-scrollbar {
+  display: none;
+}
+.menu-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  padding: 9px 18px;
+  border-radius: 30px;
+  border: 1.5px solid var(--portal-border-subtle);
+  background: var(--portal-surface);
+  color: var(--portal-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+.menu-nav-pill:hover {
+  border-color: #d4af37;
+  color: var(--portal-text-primary);
+  transform: translateY(-1px);
+}
+.menu-nav-pill.active {
+  background: linear-gradient(135deg, #773e51 0%, #512334 100%);
+  color: #ffffff;
+  border-color: #773e51;
+  box-shadow: 0 4px 16px rgba(119, 62, 81, 0.35);
+}
+.menu-nav-pill .pill-counter {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+}
+.menu-nav-pill:not(.active) .pill-counter {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--portal-text-secondary);
+}
+
+/* Dietary Quick Filters */
+.menu-dietary-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.diet-filter-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--portal-text-secondary);
+  letter-spacing: 0.5px;
+}
+.diet-filter-btn {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--portal-border-subtle);
+  background: var(--portal-surface);
+  color: var(--portal-text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.diet-filter-btn:hover {
+  border-color: #d4af37;
+  color: var(--portal-text-primary);
+}
+.diet-filter-btn.active {
+  background: #d4af37;
+  color: #1a1a1a;
+  border-color: #d4af37;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+}
+
+/* Luxury Dish Section & Grid */
+.course-section-wrapper {
+  margin-bottom: 36px;
+}
+.course-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--portal-border-subtle);
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+.course-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.course-section-title h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--portal-text-primary);
+  margin: 0;
+}
+.course-section-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #b8860b;
+  background: rgba(212, 175, 55, 0.14);
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+.course-timing-tag {
+  font-size: 11.5px;
+  color: var(--portal-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.luxury-dishes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+/* Individual Dish Card */
+.luxury-dish-card {
+  background: var(--portal-surface);
+  border: 1px solid var(--portal-border-subtle);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: var(--portal-card-shadow);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+.luxury-dish-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 0%;
+  background: linear-gradient(to bottom, #d4af37, #996e00);
+  transition: height 0.3s ease;
+}
+.luxury-dish-card:hover {
+  border-color: rgba(212, 175, 55, 0.6);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+.luxury-dish-card:hover::after {
+  height: 100%;
+}
+
+.dish-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.dish-card-header h4 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--portal-text-primary);
+  margin: 0;
+  line-height: 1.35;
+}
+.dish-unit-badge {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(212, 175, 55, 0.12);
+  color: #b8860b;
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+}
+
+.dish-card-desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--portal-text-secondary);
+  margin: 0 0 14px;
+}
+
+.dish-card-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dish-tags-row {
+  display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
+.dish-tag-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
-.public-menu-filters button {
-  min-height: 44px;
-  padding: 6px 13px;
-  border: 1px solid var(--portal-border);
-  border-radius: 8px;
+.dish-pairing-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--portal-accent);
+  font-style: italic;
+  padding-top: 8px;
+  border-top: 1px dashed var(--portal-border-subtle);
+}
+
+/* Dish Detail Popup Modal */
+.dish-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(18, 12, 17, 0.75);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+.dish-modal-box {
   background: var(--portal-surface);
+  border: 1.5px solid #d4af37;
+  border-radius: 24px;
+  max-width: 540px;
+  width: 100%;
+  padding: 32px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+  position: relative;
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dish-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--portal-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.dish-modal-close:hover {
+  background: rgba(0, 0, 0, 0.1);
   color: var(--portal-text-primary);
-  font-size: 0.875rem;
-  font-weight: 650;
 }
-
-.public-menu-filters button[aria-pressed="true"] {
-  background: var(--portal-pill-active-bg);
-  color: var(--portal-pill-active-text);
+.dish-modal-header {
+  margin-bottom: 20px;
 }
-
-.public-menu-group > h3 {
+.dish-modal-moment {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #b8860b;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 6px;
+}
+.dish-modal-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--portal-text-primary);
+  margin: 0;
+  line-height: 1.25;
+}
+.dish-modal-body p {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--portal-text-secondary);
+  margin-bottom: 20px;
+}
+.dish-modal-pairing-card {
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.dish-modal-pairing-card strong {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin: 22px 0 10px;
-  padding-block-end: 8px;
-  border-bottom: 1px solid var(--portal-border);
+  font-size: 12.5px;
+  color: #b8860b;
+  margin-bottom: 5px;
+}
+.dish-modal-pairing-card p {
+  font-size: 12px;
+  margin: 0;
   color: var(--portal-text-primary);
-  font-size: 1.125rem;
+  font-style: italic;
 }
-
-.public-menu-group > h3 svg { color: var(--portal-accent); }
-.public-menu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 10px; }
-
-.public-menu-card {
-  min-width: 0;
-  padding-inline: 14px;
-  border: 1px solid var(--portal-border);
+.dish-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.dish-modal-footer button {
+  background: #62263b;
+  color: white;
+  border: none;
   border-radius: 10px;
-  background: var(--portal-surface);
-  overflow-wrap: anywhere;
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.public-menu-card h4 { margin: 0; padding: 12px 0 7px; font-size: 1rem; color: var(--portal-accent); }
-.public-menu-card ul { list-style: none; padding: 0; margin: 0; }
-.public-menu-card li { border-top: 1px solid var(--portal-border-subtle); padding: 10px 0; }
-.public-menu-card li p { margin: 4px 0 0; color: var(--portal-text-secondary); font-size: 0.875rem; line-height: 1.5; }
+/* Empty Search Feedback */
+.menu-empty-feedback {
+  text-align: center;
+  padding: 50px 20px;
+  background: var(--portal-surface);
+  border: 1px dashed var(--portal-border-subtle);
+  border-radius: 18px;
+}
+.menu-empty-feedback h4 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  color: var(--portal-text-primary);
+  margin: 12px 0 6px;
+}
+.menu-empty-feedback p {
+  font-size: 13px;
+  color: var(--portal-text-secondary);
+  margin: 0 0 16px;
+}
 
-@media (max-width: 580px) {
-  .public-menu-grid { grid-template-columns: minmax(0, 1fr); }
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .menu-banquet-timeline {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .menu-banquet-timeline {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px;
+  }
+  .luxury-dishes-grid {
+    grid-template-columns: 1fr;
+  }
+  .course-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
 }
