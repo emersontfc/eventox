@@ -3427,3 +3427,240 @@ body:has(.organizer-drawer[open]) {
     flex-shrink: 0;
   }
 }
+
+/* Seating planner and menu management */
+.seating-toolbar,
+.menu-management-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.menu-management-heading .primary,
+.seating-selection .primary,
+.seating-selection .outline,
+.menu-management-group .h-prod-actions button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.seating-search {
+  position: relative;
+  width: min(100%, 22rem);
+}
+
+.seating-search .desk-search {
+  margin: 0;
+}
+
+.seating-results {
+  position: absolute;
+  z-index: 7;
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid #e8dde4;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 20px #2b1a2517;
+}
+
+.seating-results button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  padding: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.seating-results button:hover,
+.seating-results button:focus-visible {
+  background: #f6eaf0;
+}
+
+.seating-selection {
+  position: sticky;
+  top: 70px;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #bd9aae;
+  border-radius: 10px;
+  background: #fbf4f7;
+  box-shadow: 0 3px 9px #2b1a2514;
+  overflow-wrap: anywhere;
+}
+
+.seating-selection p {
+  margin: 3px 0;
+}
+
+.seating-selection .organizer-actions {
+  margin: 0;
+}
+
+.seating-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 295px), 1fr));
+  align-items: start;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.seating-table {
+  min-width: 0;
+  padding: 14px;
+}
+
+.seating-table header,
+.seating-table-actions,
+.public-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.seating-table header h2 {
+  font-size: 1.12rem;
+  margin: 0;
+}
+
+.seating-table header p,
+.seating-results small {
+  margin: 4px 0;
+  color: #68515b;
+  font-size: 0.875rem;
+}
+
+.seating-table-actions button {
+  min-height: 40px;
+}
+
+.seating-place-list {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.seating-place {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 9px;
+  text-align: left;
+  color: #35252e;
+  border: 1px solid #e8dde4;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.seating-place > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  min-height: 28px;
+  border-radius: 6px;
+  background: #f0e7eb;
+  font-size: 0.8125rem;
+  color: #624253;
+}
+
+.seating-place > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.seating-place[draggable="true"],
+.seating-dot[draggable="true"] {
+  cursor: grab;
+}
+
+.seating-place:is(:hover, [data-target="true"]),
+.seating-dot[data-target="true"] {
+  border-color: #9c5674;
+  background: #fbecf2;
+}
+
+.seating-place[data-selected="true"],
+.seating-dot[data-selected="true"] {
+  color: #fff;
+  background: #62263b;
+  border-color: #62263b;
+}
+
+.menu-management-group h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 22px 0 10px;
+  font-size: 1.125rem;
+}
+
+.menu-management-group .h-product,
+.menu-management-group .h-prod-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.menu-product-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #68515b;
+  margin-top: 8px;
+}
+
+.portal-menu-section {
+  padding: 0 16px 36px;
+}
+
+.portal-menu-section > h2 {
+  text-align: center;
+  margin: 0 0 14px;
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+}
+
+.portal-menu-section .menu-showcase-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+}
+
+.portal-menu-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.public-menu-item span {
+  color: var(--portal-text-secondary);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 600px) {
+  .seating-selection { top: 62px; }
+  .seating-tables { grid-template-columns: minmax(0, 1fr); }
+}

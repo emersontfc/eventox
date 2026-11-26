@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../db';
 import { events, guestTables, guests, orders, settings } from '../../../db/schema';
-import { eq, and, ne, count, notLike } from 'drizzle-orm';
+import { eq, and, ne, count, notLike, gt } from 'drizzle-orm';
 import { hasPermission } from '../../../lib/permissions';
 import { planGuestImport } from '../../../lib/guest-import';
 import { hashPasscode, getEventMembershipContext } from '../../../lib/auth';
@@ -77,6 +77,7 @@ export async function POST(request: Request) {
     const permissions: Record<string, string> = {
       'guest-import': 'guests:create',
       'guest-save': Number(body.id) > 0 ? 'guests:edit' : 'guests:create',
+      'guest-move': 'guests:edit',
       'guest-delete': 'guests:delete',
       'guest-status': body.status === 'presente' ? 'guests:checkin' : 'guests:rsvp',
       'table-save': Number(body.id) > 0 ? 'tables:edit' : 'tables:create',
@@ -150,6 +151,43 @@ export async function POST(request: Request) {
       } else {
         await db.insert(guests).values({ ...record, createdAt: new Date().toISOString() });
       }
+    } else if (action === 'guest-move') {
+      const id = Number(body.id), tableId = Number(body.tableId), seat = Number(body.seat);
+      const fromTableId = Number(body.fromTableId), fromSeat = Number(body.fromSeat);
+      const targetId = body.guestId === null ? null : Number(body.guestId);
+      if (![id, tableId, seat, fromTableId, fromSeat].every(value => Number.isSafeInteger(value) && value > 0) ||
+          (targetId !== null && (!Number.isSafeInteger(targetId) || targetId < 1 || targetId === id))) {
+        throw new Error('Confere os lugares selecionados.');
+      }
+
+      db.transaction((tx: typeof db) => {
+        const source = tx.select().from(guests)
+          .where(and(eq(guests.id, id), eq(guests.eventId, eventId))).get();
+        const table = tx.select().from(guestTables)
+          .where(and(eq(guestTables.id, tableId), eq(guestTables.eventId, eventId))).get();
+        const occupant = tx.select().from(guests)
+          .where(and(eq(guests.eventId, eventId), eq(guests.tableId, tableId), eq(guests.seat, seat))).get();
+        if (!source || source.tableId !== fromTableId || source.seat !== fromSeat ||
+            !table || seat > table.capacity || (occupant?.id ?? null) !== targetId) {
+          throw new Error('Os lugares mudaram desde a seleção. Escolhe novamente.');
+        }
+
+        const updateSeat = (guestId: number, nextTableId: number, nextSeat: number) => {
+          tx.update(guests).set({ tableId: nextTableId, seat: nextSeat })
+            .where(and(eq(guests.id, guestId), eq(guests.eventId, eventId))).run();
+        };
+        if (occupant) {
+          const originalTable = tx.select().from(guestTables)
+            .where(and(eq(guestTables.id, fromTableId), eq(guestTables.eventId, eventId))).get();
+          if (!originalTable || fromSeat > originalTable.capacity) {
+            throw new Error('O lugar de origem já não está disponível para troca.');
+          }
+          // Vacate the original seat inside the transaction so the unique constraint holds during the swap.
+          updateSeat(source.id, fromTableId, -source.id);
+          updateSeat(occupant.id, fromTableId, fromSeat);
+        }
+        updateSeat(source.id, tableId, seat);
+      }, { behavior: 'immediate' });
     } else if (action === 'guest-status') {
       const id = Number(body.id);
       const status = String(body.status);
@@ -166,33 +204,32 @@ export async function POST(request: Request) {
       const id = Number(body.id);
       if (!Number.isInteger(id) || id < 1) throw new Error('Convidado inválido.');
       await db.delete(guests).where(and(eq(guests.id, id), eq(guests.eventId, eventId)));
-    } else if (action === 'table-save' || action === 'table-create') {
+    } else if (action === 'table-save' || action === 'table-create' || action === 'table-rename') {
       const id = Number(body.id || 0);
       const name = String(body.name || '').trim().slice(0, 90);
-      const capacity = Math.min(30, Math.max(2, Number(body.capacity) || (name.toLowerCase().includes('honra') ? 4 : 10)));
-      if (!name) throw new Error('Nome da mesa obrigatório.');
-
-      if (id > 0) {
-        await db.update(guestTables).set({ name, capacity }).where(and(eq(guestTables.id, id), eq(guestTables.eventId, eventId)));
-      } else {
-        const existingTables = await db.select({ id: guestTables.id }).from(guestTables).where(eq(guestTables.eventId, eventId));
-        const maxId = existingTables.reduce((max: number, t: { id: number }) => Math.max(max, t.id), 0);
-        const nextId = maxId + 1;
-        await db.insert(guestTables).values({
-          id: nextId,
-          eventId,
-          name,
-          capacity,
-        });
+      const capacity = body.capacity === undefined && action === 'table-rename' ? undefined
+        : Number(body.capacity ?? (name.toLowerCase().includes('honra') ? 4 : 10));
+      if (!name || !Number.isSafeInteger(id) || id < 0 || (action === 'table-create' && id !== 0) || (action === 'table-rename' && !id) ||
+          (capacity !== undefined && (!Number.isSafeInteger(capacity) || capacity < 2 || capacity > 30))) {
+        throw new Error('Confere o nome e a capacidade da mesa.');
       }
-    } else if (action === 'table-rename') {
-      const id = Number(body.id);
-      const name = String(body.name || '').trim().slice(0, 90);
-      const capacity = body.capacity !== undefined ? Math.min(30, Math.max(2, Number(body.capacity) || 10)) : undefined;
-      if (!Number.isInteger(id) || !name) throw new Error('Nome da mesa inválido.');
-      const updateData: { name: string; capacity?: number } = { name };
-      if (capacity !== undefined) updateData.capacity = capacity;
-      await db.update(guestTables).set(updateData).where(and(eq(guestTables.id, id), eq(guestTables.eventId, eventId)));
+
+      db.transaction((tx: typeof db) => {
+        if (action === 'table-create' || !id) {
+          tx.insert(guestTables).values({ eventId, name, capacity }).run();
+          return;
+        }
+        const table = tx.select().from(guestTables)
+          .where(and(eq(guestTables.id, id), eq(guestTables.eventId, eventId))).get();
+        if (!table) throw new Error('Mesa não encontrada.');
+        if (capacity !== undefined) {
+          const outside = tx.select({ id: guests.id }).from(guests)
+            .where(and(eq(guests.eventId, eventId), eq(guests.tableId, id), gt(guests.seat, capacity))).get();
+          if (outside) throw new Error('Move os convidados dos lugares que ficariam fora da nova capacidade.');
+        }
+        tx.update(guestTables).set({ name, ...(capacity !== undefined ? { capacity } : {}) })
+          .where(and(eq(guestTables.id, id), eq(guestTables.eventId, eventId))).run();
+      }, { behavior: 'immediate' });
     } else if (action === 'table-delete') {
       const id = Number(body.id);
       if (!Number.isInteger(id) || id < 1) throw new Error('Mesa inválida.');

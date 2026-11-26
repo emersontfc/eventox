@@ -4,8 +4,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown, ArrowUp, Check, ClipboardList, ExternalLink, GlassWater,
   Minus, Music2, Package, Play, Plus, Search, Trash2, UtensilsCrossed,
-  X, Sparkles, ChefHat, Salad, Beef, Cake, Moon, Wine, Info
+  X, Sandwich, Salad, CakeSlice, Wine
 } from 'lucide-react';
+import { menuCategories, menuCategory, type MenuCategory } from '../lib/menu-categories';
 import EmbeddedMusicPlayer from '../components/EmbeddedMusicPlayer';
 
 type Table = { id: number; name: string };
@@ -37,77 +38,13 @@ type Song = {
 };
 type Payload = { items: Item[]; orders: Order[]; songs: Song[] };
 
-export const CATEGORY_META: Record<
-  string,
-  { label: string; group: 'food' | 'drink'; icon: string; badgeColor: string; placeholderName: string; placeholderDesc: string }
-> = {
-  entrada: {
-    label: 'Entradas & Canapés',
-    group: 'food',
-    icon: '🥗',
-    badgeColor: '#10b981',
-    placeholderName: 'Ex.: Tártaro de Salmão com Abacate ou Tábua de Queijos Nobres',
-    placeholderDesc: 'Indica os ingredientes, molhos e acompanhamentos finos...',
-  },
-  prato_principal: {
-    label: 'Pratos Principais',
-    group: 'food',
-    icon: '🥩',
-    badgeColor: '#f59e0b',
-    placeholderName: 'Ex.: Lombo de Novilho em Crosta de Ervas Finas com Gratin',
-    placeholderDesc: 'Guarnições, ponto de carne, peixe, molhos especiais ou opção vegetariana...',
-  },
-  comida: {
-    label: 'Pratos Principais',
-    group: 'food',
-    icon: '🥩',
-    badgeColor: '#f59e0b',
-    placeholderName: 'Ex.: Lombo de Novilho ou Robalo Selvagem Grelhado',
-    placeholderDesc: 'Detalhes gastronómicos do prato principal...',
-  },
-  sobremesa: {
-    label: 'Sobremesas & Doces',
-    group: 'food',
-    icon: '🍰',
-    badgeColor: '#ec4899',
-    placeholderName: 'Ex.: Bolo de Gala Red Velvet & Frutos Silvestres',
-    placeholderDesc: 'Camadas do bolo, sobremesas individuais ou mesa de frutas...',
-  },
-  lanche: {
-    label: 'Ceia & Lanches Noturnos',
-    group: 'food',
-    icon: '🌙',
-    badgeColor: '#a855f7',
-    placeholderName: 'Ex.: Caldo Verde Tradicional com Broa ou Mini Pregos',
-    placeholderDesc: 'Serviço da madrugada para recuperar energias na festa...',
-  },
-  bebida: {
-    label: 'Bar, Vinhos & Bebidas',
-    group: 'drink',
-    icon: '🥂',
-    badgeColor: '#38bdf8',
-    placeholderName: 'Ex.: Espumante Brut de Honra 750ml ou Cocktail de Assinatura',
-    placeholderDesc: 'Garrafeira, cocktails, cervejas ou refrigerantes e águas...',
-  },
-  bar: {
-    label: 'Bar, Vinhos & Bebidas',
-    group: 'drink',
-    icon: '🥂',
-    badgeColor: '#38bdf8',
-    placeholderName: 'Ex.: Cocktail Eventox Gold com Gin e Citrinos',
-    placeholderDesc: 'Bebidas alcoólicas e não-alcoólicas...',
-  },
-};
+const categoryIcons = { doce: CakeSlice, salgado: Sandwich, entrada: Salad, bebida: GlassWater, bar: Wine };
 
 const blankItem: Item = {
-  id: 0,
-  name: '',
-  category: 'prato_principal',
-  description: '',
-  stock: 120,
-  unit: 'prato',
-  available: true,
+  id: 0, name: '', category: 'salgado', description: '', stock: 0, unit: 'unidade', available: true,
 };
+
+const basketUnits = ['unidade', 'porção', 'prato', 'dose', 'buffet livre', 'fatia', 'tigela', 'travessa', 'garrafa', 'copo', 'taça', 'lata', 'litro'];
 
 const blankSong: Song = { id: 0, title: '', artist: '', url: '', position: 0, status: 'fila' };
 const orderStatus: Record<string, string> = {
@@ -116,8 +53,6 @@ const orderStatus: Record<string, string> = {
   entregue: 'Entregue',
   cancelado: 'Cancelado',
 };
-
-const isFoodCategory = (c: string) => ['entrada', 'prato_principal', 'comida', 'sobremesa', 'lanche'].includes(c);
 
 export default function Hospitality({
   mode,
@@ -136,9 +71,8 @@ export default function Hospitality({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [itemEdit, setItemEdit] = useState<Item | null>(null);
-  const [itemTypeTab, setItemTypeTab] = useState<'food' | 'drink'>('food');
   const [songEdit, setSongEdit] = useState<Song | null>(null);
-  const [category, setCategory] = useState('todos');
+  const [category, setCategory] = useState<MenuCategory | 'todos'>('todos');
   const [search, setSearch] = useState('');
   const [orderTable, setOrderTable] = useState(1);
   const [orderItem, setOrderItem] = useState(0);
@@ -181,37 +115,11 @@ export default function Hospitality({
     }
   };
 
-  const handleImportGalaTemplate = async () => {
-    if (!confirm('Desejas pré-carregar o Menu de Gala Completo (Entradas finas, 3 Pratos Principais, Sobremesas, Ceia e Bar de Gala)?')) {
-      return;
-    }
-    const ok = await act({ action: 'template-gala-menu' });
-    if (ok) {
-      setSuccess('✦ Menu de Gala completo pré-carregado com sucesso!');
-    }
-  };
-
   const products = useMemo(() => {
-    return data.items.filter((p) => {
-      let matchCategory = false;
-      if (category === 'todos') {
-        matchCategory = true;
-      } else if (category === 'comidas') {
-        matchCategory = isFoodCategory(p.category);
-      } else if (category === 'bebidas') {
-        matchCategory = p.category === 'bebida' || p.category === 'bar';
-      } else if (category === 'prato_principal') {
-        matchCategory = p.category === 'prato_principal' || p.category === 'comida';
-      } else {
-        matchCategory = p.category === category;
-      }
-
-      const matchSearch =
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.description.toLowerCase().includes(search.toLowerCase());
-
-      return matchCategory && matchSearch;
-    });
+    const query = search.trim().toLocaleLowerCase('pt');
+    return data.items.filter(item =>
+      (category === 'todos' || menuCategory(item.category).id === category) &&
+      `${item.name} ${item.description}`.toLocaleLowerCase('pt').includes(query));
   }, [data.items, category, search]);
 
   const ordered = useMemo(() => {
@@ -233,20 +141,12 @@ export default function Hospitality({
   const nameOf = (id: number) => data.items.find((p) => p.id === id)?.name || 'Produto removido';
   const tableOf = (id: number) => tables.find((t) => t.id === id)?.name || `Mesa ${id}`;
 
-  const countEntradas = data.items.filter((x) => x.category === 'entrada').length;
-  const countPratos = data.items.filter((x) => x.category === 'prato_principal' || x.category === 'comida').length;
-  const countSobremesas = data.items.filter((x) => x.category === 'sobremesa').length;
-  const countBebidas = data.items.filter((x) => x.category === 'bebida' || x.category === 'bar').length;
-  const countLanches = data.items.filter((x) => x.category === 'lanche').length;
+  const currentMeta = menuCategory(itemEdit?.category ?? 'salgado');
+  const selectedGroups = menuCategories.filter(group => category === 'todos' || group.id === category);
 
-  // Sync modal category tab when opening edit
-  const openEditModal = (item: Item, initialType?: 'food' | 'drink') => {
-    const isFood = initialType ? initialType === 'food' : isFoodCategory(item.category);
-    setItemTypeTab(isFood ? 'food' : 'drink');
-    setItemEdit(item);
-  };
-
-  const currentMeta = CATEGORY_META[itemEdit?.category || 'prato_principal'] || CATEGORY_META['prato_principal'];
+  function addItem(initialCategory: MenuCategory = category === 'todos' ? 'salgado' : category) {
+    setItemEdit({ ...blankItem, category: initialCategory });
+  }
 
   return (
     <div className="hospitality">
@@ -269,276 +169,71 @@ export default function Hospitality({
       {loading && <p className="loading">A carregar informações…</p>}
 
       {mode === 'menu' && (
-        <>
-          <div className="page-head flex-wrap gap-4">
-            <div>
-              <span className="overline">GASTRONOMIA, CATERING & BAR</span>
-              <h1>Cardápio & Serviço da Festa</h1>
-              <p>Organiza as refeições completas (entradas, pratos principais, sobremesas, ceia) e o bar de bebidas em tempo real.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                className="outline"
-                onClick={handleImportGalaTemplate}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  borderColor: '#d4af37',
-                  color: '#d4af37',
-                  fontWeight: 600,
-                  fontSize: '12.5px',
-                  padding: '10px 16px',
-                }}
-                title="Pré-carregar um cardápio completo de gala com entradas, pratos, sobremesas e bar"
-              >
-                <Sparkles size={16} /> Pré-Carregar Menu de Gala
-              </button>
-              <button
-                className="outline"
-                onClick={() =>
-                  openEditModal(
-                    { ...blankItem, category: 'bebida', unit: 'garrafa', stock: 50 },
-                    'drink'
-                  )
-                }
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontWeight: 600,
-                  fontSize: '12.5px',
-                  padding: '10px 16px',
-                }}
-              >
-                <GlassWater size={16} className="text-sky-500" /> + Bebida / Bar
-              </button>
-              <button
-                className="primary"
-                onClick={() =>
-                  openEditModal(
-                    { ...blankItem, category: 'prato_principal', unit: 'prato', stock: 120 },
-                    'food'
-                  )
-                }
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '12.5px',
-                  padding: '10px 18px',
-                }}
-              >
-                <UtensilsCrossed size={16} /> + Comida / Prato
-              </button>
-            </div>
+        <section>
+          <div className="page-head menu-management-heading">
+            <div><h1>Cardápio e bar</h1><p>Organiza o stock e escolhe o que aparece no convite.</p></div>
+            <button className="primary" type="button" onClick={() => addItem()}><Plus size={17} /> Adicionar item</button>
           </div>
 
-          {/* Quick Catering Summary Stats */}
-          <div
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6"
-            style={{ marginBottom: '24px' }}
-          >
-            <div
-              onClick={() => setCategory('entrada')}
-              className={`p-3.5 rounded-xl border cursor-pointer transition ${
-                category === 'entrada'
-                  ? 'bg-emerald-500/10 border-emerald-500/50 shadow-md'
-                  : 'bg-white border-neutral-200 hover:border-emerald-400'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">🥗</span>
-                <div>
-                  <b className="block text-xl font-serif text-neutral-900 leading-tight">{countEntradas}</b>
-                  <span className="text-xs text-neutral-500">Entradas & Canapés</span>
-                </div>
-              </div>
+          <div className="menu-management-toolbar">
+            <div className="desk-tabs" role="group" aria-label="Categorias do cardápio">
+              <button type="button" aria-pressed={category === 'todos'} onClick={() => setCategory('todos')}>
+                Todos <b>{data.items.length}</b>
+              </button>
+              {menuCategories.map(({ id, label }) => (
+                <button type="button" key={id} aria-pressed={category === id} onClick={() => setCategory(id)}>
+                  {label} <b>{data.items.filter(item => menuCategory(item.category).id === id).length}</b>
+                </button>
+              ))}
             </div>
-
-            <div
-              onClick={() => setCategory('prato_principal')}
-              className={`p-3.5 rounded-xl border cursor-pointer transition ${
-                category === 'prato_principal'
-                  ? 'bg-amber-500/10 border-amber-500/50 shadow-md'
-                  : 'bg-white border-neutral-200 hover:border-amber-400'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">🥩</span>
-                <div>
-                  <b className="block text-xl font-serif text-neutral-900 leading-tight">{countPratos}</b>
-                  <span className="text-xs text-neutral-500">Pratos Principais</span>
-                </div>
-              </div>
-            </div>
-
-            <div
-              onClick={() => setCategory('sobremesa')}
-              className={`p-3.5 rounded-xl border cursor-pointer transition ${
-                category === 'sobremesa'
-                  ? 'bg-pink-500/10 border-pink-500/50 shadow-md'
-                  : 'bg-white border-neutral-200 hover:border-pink-400'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">🍰</span>
-                <div>
-                  <b className="block text-xl font-serif text-neutral-900 leading-tight">{countSobremesas}</b>
-                  <span className="text-xs text-neutral-500">Sobremesas & Doces</span>
-                </div>
-              </div>
-            </div>
-
-            <div
-              onClick={() => setCategory('bebidas')}
-              className={`p-3.5 rounded-xl border cursor-pointer transition ${
-                category === 'bebidas'
-                  ? 'bg-sky-500/10 border-sky-500/50 shadow-md'
-                  : 'bg-white border-neutral-200 hover:border-sky-400'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">🥂</span>
-                <div>
-                  <b className="block text-xl font-serif text-neutral-900 leading-tight">{countBebidas}</b>
-                  <span className="text-xs text-neutral-500">Bar & Bebidas</span>
-                </div>
-              </div>
-            </div>
-
-            <div
-              onClick={() => setCategory('lanche')}
-              className={`p-3.5 rounded-xl border cursor-pointer transition ${
-                category === 'lanche'
-                  ? 'bg-purple-500/10 border-purple-500/50 shadow-md'
-                  : 'bg-white border-neutral-200 hover:border-purple-400'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">🌙</span>
-                <div>
-                  <b className="block text-xl font-serif text-neutral-900 leading-tight">{countLanches}</b>
-                  <span className="text-xs text-neutral-500">Ceia & Lanches</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Filtering toolbar */}
-          <div className="h-toolbar">
-            <label className="search">
-              <Search size={18} />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Pesquisar por prato, ingrediente ou bebida…"
-              />
+            <label className="desk-search">
+              <Search size={18} aria-hidden="true" />
+              <input aria-label="Pesquisar no cardápio" value={search} placeholder="Pesquisar por nome ou ingrediente"
+                onChange={event => setSearch(event.target.value)} />
             </label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="todos">🍽️ Todos os Itens ({data.items.length})</option>
-              <option value="comidas">🍲 Todas as Comidas ({countEntradas + countPratos + countSobremesas + countLanches})</option>
-              <option value="entrada">🥗 Entradas & Canapés ({countEntradas})</option>
-              <option value="prato_principal">🥩 Pratos Principais ({countPratos})</option>
-              <option value="sobremesa">🍰 Sobremesas & Doces ({countSobremesas})</option>
-              <option value="bebidas">🥂 Bar & Bebidas ({countBebidas})</option>
-              <option value="lanche">🌙 Ceia & Lanches Noturnos ({countLanches})</option>
-            </select>
           </div>
 
-          {/* Products Grid */}
-          <div className="h-products">
-            {products.map((p) => {
-              const meta = CATEGORY_META[p.category] || CATEGORY_META['prato_principal'];
-              const isFood = isFoodCategory(p.category);
+          {selectedGroups.map(group => {
+            const items = products.filter(item => menuCategory(item.category).id === group.id);
+            if (!items.length) return null;
+            const Icon = categoryIcons[group.id];
+            return (
+              <section className="menu-management-group" key={group.id}>
+                <h2><Icon size={19} aria-hidden="true" /> {group.label}</h2>
+                <div className="h-products">
+                  {items.map(item => (
+                    <article className="h-product" key={item.id}>
+                      <div className="h-prod-copy">
+                        <h3>{item.name}</h3>
+                        {item.description && <p>{item.description}</p>}
+                        <div className="menu-product-status">
+                          <span className={`h-stock ${item.stock === 0 ? 'out' : item.stock <= 5 ? 'low' : ''}`}>
+                            {item.stock} {item.unit}{item.stock === 0 ? ' · Esgotado' : item.stock <= 5 ? ' · Stock baixo' : ''}
+                          </span>
+                          <span>{item.available ? 'Visível no convite' : 'Oculto'}</span>
+                        </div>
+                      </div>
+                      <div className="h-prod-actions">
+                        <button type="button" onClick={() => setItemEdit({ ...item, category: group.id })}>Editar</button>
+                        <button type="button" aria-label={`Eliminar ${item.name}`} onClick={() => {
+                          if (confirm(`Remover "${item.name}" do cardápio?`)) void act({ action: 'item-delete', id: item.id });
+                        }}><Trash2 size={17} /></button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
 
-              return (
-                <article className="h-product" key={p.id}>
-                  <div
-                    className="h-prod-icon"
-                    style={{
-                      background: `${meta.badgeColor}15`,
-                      color: meta.badgeColor,
-                      fontSize: '22px',
-                    }}
-                  >
-                    {meta.icon}
-                  </div>
-                  <div className="h-prod-copy">
-                    <span
-                      className="overline"
-                      style={{ color: meta.badgeColor, fontWeight: 700 }}
-                    >
-                      {meta.label.toUpperCase()}
-                    </span>
-                    <h3>{p.name}</h3>
-                    <p>{p.description || (isFood ? 'Prato confeccionado pela comissão de catering' : 'Bebida disponível no bar')}</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <span className={'h-stock ' + (p.stock === 0 ? 'out' : p.stock <= 5 ? 'low' : '')}>
-                        {p.stock} {p.unit}
-                        {p.stock === 0 ? ' · Esgotado' : p.stock <= 5 ? ' · Stock baixo' : ''}
-                      </span>
-                      {p.available ? (
-                        <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                          ✓ No cardápio público
-                        </span>
-                      ) : (
-                        <span className="h-inactive">Oculto</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="h-prod-actions">
-                    <button onClick={() => openEditModal(p)}>Editar</button>
-                    <button
-                      title="Eliminar produto"
-                      onClick={async () => {
-                        if (confirm(`Remover "${p.name}" do cardápio?`)) {
-                          await act({ action: 'item-delete', id: p.id });
-                        }
-                      }}
-                    >
-                      <Trash2 size={17} />
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-
-          {!products.length && (
-            <div className="empty" style={{ background: 'white', borderRadius: '16px', padding: '50px 20px', border: '1px solid var(--line)' }}>
-              <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-3xl">
-                🍽️
-              </div>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 6px', color: '#3d2531' }}>
-                O cardápio gastronómico está à espera das primeiras opções
-              </h3>
-              <p style={{ fontSize: '13px', color: '#7a6870', maxWidth: '460px', margin: '0 auto 20px' }}>
-                Adiciona as entradas, pratos principais, sobremesas e bebidas da festa, ou usa o botão abaixo para pré-carregar um Menu de Gala com 1 clique.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3">
-                <button
-                  className="primary"
-                  onClick={handleImportGalaTemplate}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <Sparkles size={16} /> Pré-Carregar Menu de Gala Completo
-                </button>
-                <button
-                  className="outline"
-                  onClick={() =>
-                    openEditModal(
-                      { ...blankItem, category: 'prato_principal', unit: 'prato', stock: 120 },
-                      'food'
-                    )
-                  }
-                >
-                  <Plus size={16} /> Criar Prato do Zero
-                </button>
-              </div>
+          {!products.length && !loading && (
+            <div className="empty">
+              <h2>{search.trim() ? 'Nenhum item encontrado' : category === 'todos' ? 'O cardápio ainda está vazio' : 'Sem itens nesta categoria'}</h2>
+              {search.trim() ? <button type="button" className="outline" onClick={() => setSearch('')}>Limpar pesquisa</button>
+                : <button type="button" className="outline" onClick={() => addItem()}>Adicionar item</button>}
             </div>
           )}
-        </>
+        </section>
       )}
 
       {mode === 'orders' && (
@@ -590,24 +285,16 @@ export default function Hospitality({
                   Item do Cardápio (Comida ou Bebida)
                   <select required value={orderItem} onChange={(e) => setOrderItem(+e.target.value)}>
                     <option value={0}>Seleciona o item do pedido...</option>
-                    <optgroup label="🍽️ Comidas & Pratos da Gala">
-                      {available
-                        .filter((p) => isFoodCategory(p.category))
-                        .map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {CATEGORY_META[p.category]?.icon || '🍲'} {p.name} · {p.stock} {p.unit}
-                          </option>
-                        ))}
-                    </optgroup>
-                    <optgroup label="🥂 Bar & Bebidas">
-                      {available
-                        .filter((p) => !isFoodCategory(p.category))
-                        .map((p) => (
-                          <option key={p.id} value={p.id}>
-                            🥂 {p.name} · {p.stock} {p.unit}
-                          </option>
-                        ))}
-                    </optgroup>
+                    {menuCategories.map(({ id, label }) => {
+                      const items = available.filter(item => menuCategory(item.category).id === id);
+                      return items.length > 0 && (
+                        <optgroup label={label} key={id}>
+                          {items.map(item => (
+                            <option key={item.id} value={item.id}>{item.name} · {item.stock} {item.unit}</option>
+                          ))}
+                        </optgroup>
+                      );
+                    })}
                   </select>
                 </label>
 
@@ -838,179 +525,56 @@ export default function Hospitality({
         </>
       )}
 
-      {/* MODAL: ADD / EDIT MENU ITEM (FOOD & DRINKS) */}
       {itemEdit && (
-        <div
-          className="modal-cover"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setItemEdit(null);
-          }}
-        >
-          <div className="modal" style={{ maxWidth: '620px' }}>
+        <div className="modal-cover" onMouseDown={event => {
+          if (event.target === event.currentTarget && !busy) setItemEdit(null);
+        }}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="menu-item-title">
             <div className="modal-title">
-              <div>
-                <span className="overline">GASTRONOMIA & CATERING</span>
-                <h2>{itemEdit.id ? 'Editar Item do Cardápio' : 'Adicionar ao Cardápio'}</h2>
-              </div>
-              <button onClick={() => setItemEdit(null)}>
-                <X />
-              </button>
+              <h2 id="menu-item-title">{itemEdit.id ? 'Editar item' : 'Adicionar ao cardápio'}</h2>
+              <button type="button" aria-label="Fechar" disabled={busy} onClick={() => setItemEdit(null)}><X /></button>
             </div>
-
-            {/* Segmented Type Toggle: Comida vs Bebida */}
-            <div
-              className="flex items-center gap-2 p-1.5 rounded-xl border border-neutral-200 bg-neutral-100 mb-5"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setItemTypeTab('food');
-                  if (!isFoodCategory(itemEdit.category)) {
-                    setItemEdit({ ...itemEdit, category: 'prato_principal', unit: 'prato' });
-                  }
-                }}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
-                  itemTypeTab === 'food'
-                    ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/80'
-                    : 'text-neutral-500 hover:text-neutral-900'
-                }`}
-              >
-                <span>🍽️</span> Refeição / Prato de Comida
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setItemTypeTab('drink');
-                  setItemEdit({ ...itemEdit, category: 'bebida', unit: 'garrafa' });
-                }}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
-                  itemTypeTab === 'drink'
-                    ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/80'
-                    : 'text-neutral-500 hover:text-neutral-900'
-                }`}
-              >
-                <span>🥂</span> Bebida / Bar da Festa
-              </button>
-            </div>
-
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (await act({ action: 'item-save', ...itemEdit })) {
-                  setItemEdit(null);
-                }
-              }}
-              className="form-grid"
-            >
-              <label className="field">
-                Secção do Cardápio
-                {itemTypeTab === 'food' ? (
-                  <select
-                    value={itemEdit.category === 'comida' ? 'prato_principal' : itemEdit.category}
-                    onChange={(e) => setItemEdit({ ...itemEdit, category: e.target.value })}
-                  >
-                    <option value="entrada">🥗 Entrada & Canapé (Aperitivos)</option>
-                    <option value="prato_principal">🥩 Prato Principal (Carne / Peixe / Vegetariano)</option>
-                    <option value="sobremesa">🍰 Sobremesa & Doces (Bolo Comemorativo)</option>
-                    <option value="lanche">🌙 Ceia & Lanches Noturnos (Madrugada)</option>
-                  </select>
-                ) : (
-                  <select
-                    value={itemEdit.category}
-                    onChange={(e) => setItemEdit({ ...itemEdit, category: e.target.value })}
-                  >
-                    <option value="bebida">🥂 Garrafeira, Cocktails, Cervejas & Bebidas</option>
-                  </select>
-                )}
+            {error && <p className="auth-alert-error" role="alert">{error}</p>}
+            <form className="form-grid" onSubmit={async event => {
+              event.preventDefault();
+              if (await act({ action: 'item-save', ...itemEdit })) setItemEdit(null);
+            }}>
+              <label className="field full">Nome
+                <input autoFocus required maxLength={140} value={itemEdit.name} placeholder={currentMeta.example}
+                  onChange={event => setItemEdit({ ...itemEdit, name: event.target.value })} />
               </label>
-
-              <label className="field">
-                Unidade de Serviço
-                <select
-                  value={itemEdit.unit}
-                  onChange={(e) => setItemEdit({ ...itemEdit, unit: e.target.value })}
-                >
-                  {itemTypeTab === 'food' ? (
-                    <>
-                      <option value="prato">prato</option>
-                      <option value="dose">dose</option>
-                      <option value="porção">porção</option>
-                      <option value="buffet livre">buffet livre</option>
-                      <option value="fatia">fatia</option>
-                      <option value="tigela">tigela</option>
-                      <option value="travessa">travessa</option>
-                      <option value="unidade">unidade</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="garrafa">garrafa</option>
-                      <option value="copo">copo</option>
-                      <option value="taça">taça</option>
-                      <option value="lata">lata</option>
-                      <option value="dose">dose</option>
-                      <option value="unidade">unidade</option>
-                      <option value="litro">litro</option>
-                    </>
-                  )}
+              <label className="field full">Categoria
+                <select value={currentMeta.id} onChange={event => setItemEdit({ ...itemEdit, category: event.target.value })}>
+                  {menuCategories.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
                 </select>
               </label>
-
-              <label className="field full">
-                Nome do Prato ou Bebida *
-                <input
-                  autoFocus
-                  required
-                  value={itemEdit.name}
-                  onChange={(e) => setItemEdit({ ...itemEdit, name: e.target.value })}
-                  placeholder={currentMeta.placeholderName}
-                />
+              <label className="field">Quantidade em stock
+                <input type="number" min={0} max={1000000} required value={itemEdit.stock}
+                  onChange={event => setItemEdit({ ...itemEdit, stock: +event.target.value })} />
               </label>
-
-              <label className="field full">
-                Descrição & Ingredientes Principais
-                <textarea
-                  rows={3}
-                  value={itemEdit.description}
-                  onChange={(e) => setItemEdit({ ...itemEdit, description: e.target.value })}
-                  placeholder={currentMeta.placeholderDesc}
-                />
+              <label className="field">Unidade
+                <select value={itemEdit.unit} onChange={event => setItemEdit({ ...itemEdit, unit: event.target.value })}>
+                  {Array.from(new Set([...basketUnits, itemEdit.unit])).map(unit => <option key={unit}>{unit}</option>)}
+                </select>
               </label>
-
-              <label className="field">
-                {itemTypeTab === 'food' ? 'Doses / Porções Previstas' : 'Quantidade em Stock'}
-                <input
-                  type="number"
-                  min={0}
-                  max={1000000}
-                  required
-                  value={itemEdit.stock}
-                  onChange={(e) => setItemEdit({ ...itemEdit, stock: +e.target.value })}
-                />
+              <label className="field full">Descrição
+                <textarea rows={3} maxLength={400} value={itemEdit.description}
+                  onChange={event => setItemEdit({ ...itemEdit, description: event.target.value })} />
               </label>
-
-              <label className="field h-checkbox" style={{ paddingTop: '24px' }}>
-                <input
-                  type="checkbox"
-                  checked={itemEdit.available}
-                  onChange={(e) => setItemEdit({ ...itemEdit, available: e.target.checked })}
-                />
-                Visível no cardápio dos convidados
+              <label className="field full h-checkbox">
+                <input type="checkbox" checked={itemEdit.available}
+                  onChange={event => setItemEdit({ ...itemEdit, available: event.target.checked })} />
+                Visível no convite
               </label>
-
               <div className="modal-actions full">
-                <button type="button" className="outline" onClick={() => setItemEdit(null)}>
-                  Cancelar
-                </button>
-                <button className="primary" disabled={busy}>
-                  {busy ? 'A guardar…' : '✦ Guardar no Cardápio'}
-                </button>
+                <button type="button" className="outline" disabled={busy} onClick={() => setItemEdit(null)}>Cancelar</button>
+                <button className="primary" disabled={busy}>{busy ? 'A guardar…' : 'Guardar item'}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL: ADD / EDIT SONG */}
       {songEdit && (
         <div
           className="modal-cover"
