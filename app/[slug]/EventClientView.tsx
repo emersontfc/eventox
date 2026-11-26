@@ -1,5 +1,5 @@
 'use client';
-import { menuCategories, menuCategory } from '../../lib/menu-categories';
+import PublicEventMenu from '../../components/PublicEventMenu';
 import ProgramTimeline from '../../components/ProgramTimeline';
 import type { ProgramItem } from '../../lib/event-program';
 
@@ -986,32 +986,7 @@ export default function EventClientView({
         </section>
       )}
 
-      {activeTab === 'menu' && (
-        <section className="portal-menu-section">
-          <h2>Cardápio e bar</h2>
-          {menuItemsList.length === 0 ? <p className="text-center">O cardápio será publicado em breve.</p> : (
-            <div className="menu-showcase-grid">
-              {menuCategories.map(({ id, label }) => {
-                const items = menuItemsList.filter(item => menuCategory(item.category).id === id);
-                if (!items.length) return null;
-                return (
-                  <section className="menu-category-card" key={id}>
-                    <h3>{label}</h3>
-                    <ul className="menu-items-list">
-                      {items.map(item => (
-                        <li key={item.id} className="menu-item-row">
-                          <div className="public-menu-item"><strong>{item.name}</strong>{item.unit && <span>{item.unit}</span>}</div>
-                          {item.description && <small>{item.description}</small>}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      )}
+      {activeTab === 'menu' && <PublicEventMenu items={menuItemsList} />}
 
       {/* TAB 5: INTEGRATED MURAL DE FELICITAÇÕES */}
       {activeTab === 'mural' && (
