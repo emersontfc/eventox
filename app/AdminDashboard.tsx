@@ -14,6 +14,7 @@ import Hospitality from './Hospitality';
 import GuestImport from './GuestImport';
 import Committee from './Committee';
 import Gallery from './Gallery';
+import SeatingPlanner from './SeatingPlanner';
 import ReceptionDesk from './ReceptionDesk';
 import EventProgramEditor from './EventProgramEditor';
 import EventModeration from './EventModeration';
@@ -254,14 +255,6 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
   const hasMesaHonra = useMemo(() => {
     return data.tables.some(t => t.name.toLowerCase().includes('honra'));
   }, [data.tables]);
-
-  const getSeatStyle = (seatNum: number, capacity: number): React.CSSProperties | undefined => {
-    if (capacity === 10) return undefined;
-    const angle = ((seatNum - 1) / capacity) * 2 * Math.PI - Math.PI / 2;
-    const left = Math.round(92 + 88 * Math.cos(angle));
-    const top = Math.round(88 + 88 * Math.sin(angle));
-    return { left: `${left}px`, top: `${top}px` };
-  };
 
   const handleDeleteTable = async (tableId: number) => {
     const target = data.tables.find(t => t.id === tableId);
@@ -610,94 +603,37 @@ export default function AdminDashboard({ slug, role, permissions }: { slug: stri
           )}
 
           {tab === 'tables' && (
-            <>
-              <div className="page-head">
+            <section>
+              <div className="page-head menu-management-heading">
                 <div>
-                  <span className="overline">PLANTA DE LUGARES</span>
-                  <h1>Mesas & lugares</h1>
-                  <p>Lugares por mesa. Toca num lugar para atribuir um convidado.</p>
+                  <h1>Mesas e lugares</h1>
+                  {can('guests:edit') && <p>Seleciona um convidado e depois o lugar de destino. No computador, também podes arrastar.</p>}
                 </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <button
-                    className="primary"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                    onClick={() => setTableModal({ id: 0, name: '', capacity: 10 })}
-                  >
-                    <Plus size={16} /> Nova Mesa
+                {can('tables:create') && (
+                  <button type="button" className="primary" onClick={() => setTableModal({ id: 0, name: '', capacity: 10 })}>
+                    <Plus size={16} /> Nova mesa
                   </button>
-                  <span className="capacity">{data.guests.length} ocupados</span>
-                </div>
+                )}
               </div>
-
-              {!hasMesaHonra && (
+              {!hasMesaHonra && can('tables:create') && (
                 <div className="mesa-honra-banner">
-                  <div className="banner-copy">
-                    <strong>👑 Falta adicionar a Mesa de Honra?</strong>
-                    <p>Cria a mesa VIP de honra com 4 lugares para o anfitrião, pais ou convidados solenes com um clique.</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn-mesa-honra"
-                    onClick={async () => {
-                      await save({ action: 'table-create', name: 'Mesa de Honra', capacity: 4 });
-                    }}
-                  >
-                    <Crown size={15} /> Adicionar Mesa de Honra (4 lugares)
+                  <strong>Mesa de honra</strong>
+                  <button type="button" className="btn-mesa-honra" disabled={saving}
+                    onClick={() => save({ action: 'table-create', name: 'Mesa de Honra', capacity: 4 })}>
+                    <Crown size={15} /> Adicionar mesa de honra
                   </button>
                 </div>
               )}
-
-              <div className="seats-grid">
-                {sortedTables.map(t => {
-                  const people = data.guests.filter(g => g.tableId === t.id);
-                  const isHonra = t.name.toLowerCase().includes('honra');
-                  return (
-                    <div className={`seat-card ${isHonra ? 'seat-card-honra' : ''}`} key={t.id}>
-                      <div className="seat-top">
-                        <span>{isHonra ? '👑 MESA DE HONRA' : `MESA ${String(t.id).padStart(2, '0')}`}</span>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          <button title="Editar mesa e capacidade" onClick={() => setTableModal({ ...t })}><Edit3 size={17} /></button>
-                          {people.length === 0 && (
-                            <button title="Eliminar mesa vazia" style={{ color: '#b33' }} onClick={() => handleDeleteTable(t.id)}><Trash2 size={17} /></button>
-                          )}
-                        </div>
-                      </div>
-                      <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {t.name}
-                        {isHonra && <span style={{ fontSize: '11px', background: '#d4af3725', color: '#b8860b', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>VIP · 4 LUGARES</span>}
-                      </h3>
-                      <div className="diagram">
-                        <div className={`round ${isHonra ? 'round-honra' : ''}`}>
-                          {isHonra ? <Crown size={24} /> : <UtensilsCrossed size={24} />}
-                          <small>{people.length}/{t.capacity}</small>
-                        </div>
-                        {Array.from({ length: t.capacity }, (_, i) => {
-                          const s = i + 1, g = people.find(g => g.seat === s);
-                          const seatStyle = getSeatStyle(s, t.capacity);
-                          return (
-                            <button
-                              key={s}
-                              className={'seat' + (t.capacity === 10 ? ` pos-${s}` : '') + (g ? ' taken' : '') + (isHonra ? ' seat-honra' : '')}
-                              style={seatStyle}
-                              title={g ? `${g.name} (${t.name} · Lugar ${s})` : `Lugar livre ${s}`}
-                              onClick={() => g ? setEdit({ ...g }) : add(t.id, s)}
-                            >
-                              {g ? <Check size={13} /> : s}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="legend">
-                        <span><i className={`taken ${isHonra ? 'taken-honra' : ''}`} /> Ocupado</span>
-                        <span><i /> Disponível</span>
-                      </div>
-                      <div className="bar"><i style={{ width: Math.min(100, (people.length / t.capacity) * 100) + '%' }} /></div>
-                      <button className="text-link" onClick={() => { setQuery(''); setStatusFilter('todos'); setTableFilter(t.id); go('guests'); }}>Ver lista da mesa →</button>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
+              {data.tables.length > 0 ? (
+                <SeatingPlanner tables={sortedTables} guests={data.guests} saving={saving} error={error}
+                  canMove={can('guests:edit')} canCreate={can('guests:create')}
+                  canEditTable={can('tables:edit')} canDeleteTable={can('tables:delete')} canViewGuests={can('guests:view')}
+                  onMove={move => save({ action: 'guest-move', ...move })}
+                  onCreateGuest={add} onEditGuest={guest => setEdit({ ...guest })}
+                  onEditTable={table => setTableModal({ ...table })} onDeleteTable={handleDeleteTable}
+                  onViewGuests={id => { setQuery(''); setStatusFilter('todos'); setTableFilter(id); go('guests'); }} />
+              ) : !loading && <p className="desk-empty">Ainda não há mesas neste evento.</p>}
+            </section>
           )}
 
           {tab === 'settings' && (

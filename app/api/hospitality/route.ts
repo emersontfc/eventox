@@ -1,3 +1,4 @@
+import { menuCategoryId } from '../../../lib/menu-categories';
 import { NextResponse } from 'next/server';
 import { getEventMembershipContext } from '../../../lib/auth';
 import { hasPermission } from '../../../lib/permissions';
@@ -16,7 +17,6 @@ function getSlug(request: Request) {
   return (url.searchParams.get('slug') || request.headers.get('x-event-slug') || 'emerson').toLowerCase().trim();
 }
 
-const VALID_CATEGORIES = ['entrada', 'prato_principal', 'sobremesa', 'lanche', 'bebida', 'comida', 'bar'];
 
 export async function GET(req: Request) {
   const slug = getSlug(req);
@@ -55,7 +55,6 @@ export async function POST(req: Request) {
     const permissions: Record<string, string> = {
       'item-save': 'hospitality:menu:manage',
       'item-delete': 'hospitality:menu:manage',
-      'template-gala-menu': 'hospitality:menu:manage',
       'order-create': 'hospitality:order:create',
       'order-status': 'hospitality:order:update',
       'song-save': 'playlist:control',
@@ -68,14 +67,12 @@ export async function POST(req: Request) {
 
     if (action === 'item-save') {
       const id = idOf(body.id), name = clean(body.name, 140);
-      let category = clean(body.category, 30).toLowerCase();
-      if (category === 'comida') category = 'prato_principal';
-      if (category === 'bar') category = 'bebida';
+      const category = menuCategoryId(clean(body.category, 30).toLowerCase());
 
       const stock = idOf(body.stock);
       const unit = clean(body.unit, 30) || 'unidade';
 
-      if (!name || !VALID_CATEGORIES.includes(category) || !Number.isSafeInteger(stock) || stock < 0 || stock > 1000000) {
+      if (!name || !category || !Number.isSafeInteger(stock) || stock < 0 || stock > 1000000) {
         return fail('Verifica o nome, categoria culinária e quantidade de stock/porções.');
       }
 
@@ -95,37 +92,6 @@ export async function POST(req: Request) {
         await db.update(menuItems).set(values).where(eq(menuItems.id, id));
       } else {
         await db.insert(menuItems).values(values);
-      }
-    } else if (action === 'template-gala-menu') {
-      // Import curated complete gourmet gala menu
-      const defaultGalaMenu = [
-        { name: 'Tártaro de Salmão com Abacate & Citrinos', category: 'entrada', description: 'Temperado com citrinos frescos, cebolinho e emulsão de ervas finas acompanhado de tostas artesanais.', stock: 150, unit: 'porção' },
-        { name: 'Bruschettas Mediterrânicas de Tomate Cereja', category: 'entrada', description: 'Tomate cereja confitado, manjericão fresco, azeite virgem extra e redução balsâmica.', stock: 150, unit: 'porção' },
-        { name: 'Tábua de Queijos Nobres & Charcutaria Fina', category: 'entrada', description: 'Seleção de queijos curados, presunto serrano, frutos secos e compotas artesanais.', stock: 150, unit: 'porção' },
-        { name: 'Lombo de Novilho em Crosta de Ervas Finas', category: 'prato_principal', description: 'Carne tenra de novilho com molho rico de vinho do Porto e batata gratinada dauphinoise.', stock: 120, unit: 'prato' },
-        { name: 'Robalo Selvagem Grelhado com Risotto de Limão', category: 'prato_principal', description: 'Filete de robalo na chapa acompanhado de risotto cremoso de limão e espargos verdes.', stock: 120, unit: 'prato' },
-        { name: 'Ravioli de Cogumelos Selvagens com Creme de Trufa', category: 'prato_principal', description: 'Massa fresca recheada com cogumelos boletus em creme aveludado de trufa negra e parmesão.', stock: 80, unit: 'prato' },
-        { name: 'Bolo de Gala Red Velvet & Frutos Silvestres', category: 'sobremesa', description: 'O bolo solene da comemoração com camadas aveludadas, frutos vermelhos frescos e corte de honra.', stock: 200, unit: 'fatia' },
-        { name: 'Petit Gâteau de Chocolate Belga com Gelado', category: 'sobremesa', description: 'Bolo quente com coração derretido de chocolate belga e bola de gelado artesanal de baunilha.', stock: 150, unit: 'dose' },
-        { name: 'Mousse Aveludada de Maracujá Fresco com Merengue', category: 'sobremesa', description: 'Creme leve e refrescante com polpa natural de maracujá e raspas de chocolate branco.', stock: 150, unit: 'taça' },
-        { name: 'Espumante Brut de Honra & Champagne', category: 'bebida', description: 'Servido para o brinde solene oficial e recepção dos convidados de honra.', stock: 60, unit: 'garrafa' },
-        { name: 'Cocktail de Assinatura "Eventox Gold"', category: 'bebida', description: 'Gin premium, xarope artesanal de flor de sabugueiro, citrinos e folha de ouro comestível.', stock: 150, unit: 'copo' },
-        { name: 'Vinhos Tintos & Brancos Reserva Selecionada', category: 'bebida', description: 'Garrafeira selecionada da colheita especial para harmonização com o jantar.', stock: 80, unit: 'garrafa' },
-        { name: 'Cervejas Especiais & Refrigerantes Variados', category: 'bebida', description: 'Cervejas artesanais, águas minerais com e sem gás, sumos naturais e refrigerantes.', stock: 250, unit: 'unidade' },
-        { name: 'Caldo Verde Tradicional com Broa de Milho', category: 'lanche', description: 'Servido quente na ceia da madrugada com rodelas de chouriço e broa tostada.', stock: 120, unit: 'tigela' },
-        { name: 'Mini Pregos em Bolo do Caco com Manteiga de Alho', category: 'lanche', description: 'Snack da madrugada com carne tenra e pão típico da Madeira na grelha.', stock: 150, unit: 'unidade' },
-      ];
-
-      for (const item of defaultGalaMenu) {
-        await db.insert(menuItems).values({
-          eventId,
-          name: item.name,
-          category: item.category,
-          description: item.description,
-          stock: item.stock,
-          unit: item.unit,
-          available: true,
-        });
       }
     } else if (action === 'item-delete') {
       const id = idOf(body.id);
