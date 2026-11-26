@@ -159,6 +159,26 @@ export default function EventClientView({
     timeZone: 'Africa/Maputo',
   });
 
+  // Listen to URL query params or hash for direct tab navigation (e.g. ?tab=menu or #menu)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      const hash = window.location.hash.replace('#', '');
+      const target = tabParam || hash;
+      const validTabs = ['seating', 'music', 'schedule', 'menu', 'mural', 'gallery', 'info'];
+      if (validTabs.includes(target)) {
+        setActiveTab(target as any);
+        if (target !== 'seating') {
+          setTimeout(() => {
+            const anchor = document.getElementById('portal-content-anchor');
+            if (anchor) anchor.scrollIntoView({ behavior: 'smooth' });
+          }, 150);
+        }
+      }
+    }
+  }, []);
+
   // Fetch initial event dynamic data (playlist, guestbook, stats)
   useEffect(() => {
     if (!event.slug) return;
@@ -476,6 +496,30 @@ export default function EventClientView({
               }}
             >
               Confirmar presença e ver lugar
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('menu');
+                const el = document.getElementById('portal-content-anchor');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="secondary-button transition-transform duration-200 hover:scale-[1.02]"
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: 'var(--portal-text-primary)',
+                border: '1.5px solid var(--portal-border)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: '12px',
+                fontSize: '13.5px',
+                padding: '12px 24px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <UtensilsCrossed size={16} /> Ver Cardápio e Bar
             </button>
           </div>
         </div>
