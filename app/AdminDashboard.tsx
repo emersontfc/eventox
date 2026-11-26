@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CalendarDays, Camera, Check, Clock3, Download, Edit3, Eye, GlassWater, Heart,
+  CalendarDays, Camera, Mail, Check, Clock3, Download, Edit3, Eye, GlassWater, Heart,
   LayoutDashboard, MapPin, Menu, Music2, Plus, Search, Settings2, Sparkles,
   Trash2, Users, UtensilsCrossed, ClipboardList, X, LogOut, ExternalLink,
   Copy, CheckCheck, Link2, Share2, QrCode, Monitor, Shield, UserCheck, Radio,
@@ -14,6 +14,7 @@ import Hospitality from './Hospitality';
 import GuestImport from './GuestImport';
 import Committee from './Committee';
 import Gallery from './Gallery';
+import GuestInvitations from './GuestInvitations';
 import SeatingPlanner from './SeatingPlanner';
 import ReceptionDesk from './ReceptionDesk';
 import EventProgramEditor from './EventProgramEditor';
@@ -65,6 +66,7 @@ const blank: Guest = { id: 0, name: '', phone: '', tableId: 1, seat: 1, status: 
 
 const sectionPermissions: Record<string, string> = {
   guests: 'guests:view',
+  invitations: 'guests:invite',
   reception: 'guests:checkin',
   program: 'event:manage',
   moderation: 'gallery:moderate',
@@ -84,6 +86,7 @@ const navigation = [
   { items: [{ id: 'overview', label: 'Visão geral', icon: LayoutDashboard }] },
   { label: 'Evento', items: [
     { id: 'guests', label: 'Convidados', icon: Users },
+    { id: 'invitations', label: 'Convites digitais', icon: Mail },
     { id: 'reception', label: 'Receção', icon: UserCheck },
     { id: 'tables', label: 'Mesas e lugares', icon: UtensilsCrossed },
     { id: 'program', label: 'Programa', icon: CalendarDays },
@@ -439,6 +442,7 @@ export default function AdminDashboard({
             </section>
           )}
 
+          {tab === 'invitations' && <GuestInvitations slug={slug} />}
           {tab === 'program' && <EventProgramEditor slug={slug} onDirtyChange={setProgramDirty} />}
           {tab === 'moderation' && <EventModeration slug={slug} />}
           {tab === 'reception' && (

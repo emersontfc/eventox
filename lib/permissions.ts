@@ -131,7 +131,7 @@ export const ROLE_DEFINITIONS: Record<EventRole, RoleDefinition> = {
 };
 
 export const MODULE_ACTIONS = [
-  { module: 'guests', label: 'Convidados & RSVP', actions: ['view', 'create', 'edit', 'delete', 'checkin', 'rsvp'] },
+  { module: 'guests', label: 'Convidados & RSVP', actions: ['view', 'create', 'edit', 'delete', 'checkin', 'rsvp', 'invite'] },
   { module: 'tables', label: 'Mesas & Lugares', actions: ['view', 'create', 'edit', 'delete'] },
   { module: 'hospitality', label: 'Bar & Catering', actions: ['view', 'order', 'stock', 'menu:manage'] },
   { module: 'screen', label: 'Modo Ecrã / Eventox Live', actions: ['view', 'control', 'design', 'messages', 'scenes'] },
