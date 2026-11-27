@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../../db';
-import { events, guestTables, guests, menuItems, playlist, galleryMedia, guestbookMessages } from '../../../../db/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { events, guestTables, guests, menuItems, playlist, galleryMedia, guestbookMessages, guestInvitations } from '../../../../db/schema';
+import { eq, and, desc, sql, ne, notExists, or } from 'drizzle-orm';
+import { hasGuestInvitation } from '../../../../lib/guest-invitation-server';
 import { EVENT_THEMES } from '../../../../lib/event-themes';
 import { isEventAdmin } from '../../../../lib/auth';
 
@@ -133,7 +134,11 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
         seat: guests.seat,
         status: guests.status,
         notes: guests.notes,
-      }).from(guests).where(eq(guests.eventId, event.id));
+      }).from(guests).where(and(eq(guests.eventId, event.id),
+        notExists(db.select({ token: guestInvitations.token }).from(guestInvitations).where(and(
+          eq(guestInvitations.eventId, event.id),
+          or(eq(guestInvitations.guestId, guests.id), eq(guestInvitations.companionId, guests.id)),
+        )))));
 
       const filtered = matches.filter((g: any) => g.name.toLowerCase().includes(q));
       const tables = await db.select().from(guestTables).where(eq(guestTables.eventId, event.id));
@@ -153,9 +158,16 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       if (!id) throw new Error('Identificador de convidado inválido.');
 
       const newStatus = body.status === 'recusado' ? 'recusado' : 'confirmado';
-      await db.update(guests)
+      const [updated] = await db.update(guests)
         .set({ status: newStatus, notes: body.notes ? String(body.notes).slice(0, 500) : '' })
-        .where(and(eq(guests.id, id), eq(guests.eventId, event.id)));
+        .where(and(eq(guests.id, id), eq(guests.eventId, event.id), ne(guests.status, 'presente'),
+          notExists(db.select({ token: guestInvitations.token }).from(guestInvitations).where(and(
+            eq(guestInvitations.eventId, event.id),
+            or(eq(guestInvitations.guestId, id), eq(guestInvitations.companionId, id)),
+          ))))).returning({ id: guests.id });
+      if (!updated) {
+        return NextResponse.json({ error: 'Usa o teu convite pessoal ou contacta a organização.' }, { status: 409 });
+      }
 
       return NextResponse.json({ ok: true, status: newStatus });
     }
@@ -176,6 +188,9 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       ).limit(1);
 
       if (existing.length > 0) {
+        if (hasGuestInvitation(event.id, existing[0].id)) {
+          return NextResponse.json({ error: 'Já tens um convite pessoal. Abre o link que recebeste.' }, { status: 409 });
+        }
         const tables = await db.select().from(guestTables).where(eq(guestTables.eventId, event.id));
         const tableMap = Object.fromEntries(tables.map((t: any) => [t.id, t.name]));
         const g = existing[0];

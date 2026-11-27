@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -93,6 +93,18 @@ export const guests = sqliteTable('guests', {
   notes: text('notes').notNull().default(''),
   createdAt: text('created_at').notNull().default(''),
 }, (table) => [uniqueIndex('guests_event_table_seat_unique').on(table.eventId, table.tableId, table.seat)]);
+
+export const guestInvitations = sqliteTable('guest_invitations', {
+  token: text('token').primaryKey().notNull(),
+  eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  guestId: integer('guest_id').notNull().references(() => guests.id, { onDelete: 'cascade' }),
+  companionId: integer('companion_id').references(() => guests.id, { onDelete: 'cascade' }),
+  createdAt: text('created_at').notNull(),
+}, table => [
+  index('guest_invitations_event_idx').on(table.eventId),
+  uniqueIndex('guest_invitations_guest_idx').on(table.guestId),
+  uniqueIndex('guest_invitations_companion_idx').on(table.companionId),
+]);
 
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),

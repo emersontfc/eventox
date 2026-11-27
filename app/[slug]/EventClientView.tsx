@@ -604,6 +604,7 @@ export default function EventClientView({
               <p>Digita o teu nome para consultar a tua mesa atribuída e confirmar a tua presença oficial.</p>
             </div>
 
+            <p className="rsvp-personal-link-hint">Se recebeste um convite pessoal, abre o link enviado pela organização.</p>
             <form onSubmit={handleSearch} className="guest-search-form">
               <div className="search-input-wrap">
                 <Search size={20} />
