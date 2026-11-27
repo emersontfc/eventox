@@ -8,6 +8,9 @@ import {
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { getEventMembershipContext, logAuditAction, isEventAdmin } from '@/lib/auth';
 import { readProgram } from '@/lib/event-program-server';
+import { readActiveProjection } from '@/lib/projection-server';
+import { getPublicLivePoll } from '@/lib/live-voting-server';
+import { readLiveProgram } from '@/lib/live-program-server';
 import { hasPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -78,7 +81,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       })
       .from(galleryMedia)
       .where(and(eq(galleryMedia.eventId, event.id), eq(galleryMedia.status, 'aprovado')))
-      .orderBy(desc(galleryMedia.id))
+      .orderBy(desc(galleryMedia.featured), desc(galleryMedia.id))
       .limit(16);
 
     // 5. Active quotes
@@ -210,7 +213,12 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       .filter((i: any) => i.type === 'qa')
       .map((i: any) => ({ id: i.id, question: i.content, sender: i.senderName, votes: i.votes || 0 }));
 
+    const timestamp = Date.now();
+    const program = settings.activeSceneId === 'schedule' ? (await readProgram(event.id, event.slug)).published : [];
     return NextResponse.json({
+      projection: readActiveProjection(event, timestamp),
+      liveProgram: settings.activeSceneId === 'schedule' ? readLiveProgram(event.id, program) : null,
+      livePoll: settings.activeSceneId === 'poll' ? getPublicLivePoll(event.id) : null,
       event: {
         id: event.id,
         slug: event.slug,
@@ -234,14 +242,14 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       photos,
       quotes,
       recentArrivals: recentGuests,
-      program: settings.activeSceneId === 'schedule' ? (await readProgram(event.id, event.slug)).published : [],
+      program,
       activeGameSession: activeGameSessionData,
       interactions: {
         wordCloud: wordCloudItems,
         polls: pollItems,
         qa: qaItems,
       },
-      timestamp: Date.now(),
+      timestamp,
     });
   } catch (err) {
     return NextResponse.json(

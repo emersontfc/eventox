@@ -45,6 +45,7 @@ export interface EventMembershipContext {
   role: string;
   permissions: string[];
   status: string;
+  authenticatedByPasscode?: true;
 }
 
 // ============================================================================
@@ -310,6 +311,7 @@ export async function getEventMembershipContext(
             role: 'proprietario',
             permissions: ['*'],
             status: 'ativo',
+            authenticatedByPasscode: true,
           };
         }
       }

@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 
+interface ByteRange {
+  start: number;
+  end: number;
+}
+
 interface StorageGetResult {
   body: BodyInit;
   contentType?: string;
@@ -59,14 +64,18 @@ function getUploadsDir(): string {
 }
 
 export const storage = {
-  async get(key: string): Promise<StorageGetResult | null> {
+  async get(key: string, range?: ByteRange): Promise<StorageGetResult | null> {
     // 1. S3 / R2 Mode
     if (isS3Configured()) {
       const s3Context = await getS3();
       if (s3Context) {
         try {
           const { client, bucket, s3 } = s3Context;
-          const res = await client.send(new s3.GetObjectCommand({ Bucket: bucket, Key: key }));
+          const res = await client.send(new s3.GetObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            ...(range ? { Range: `bytes=${range.start}-${range.end}` } : {}),
+          }));
           if (!res.Body) return null;
 
           const stream = res.Body as Readable;
@@ -90,12 +99,14 @@ export const storage = {
       const filePath = path.join(getUploadsDir(), key);
       if (!fs.existsSync(filePath)) return null;
 
-      const buffer = fs.readFileSync(filePath);
       const stat = fs.statSync(filePath);
-      return {
-        body: buffer,
-        size: stat.size,
-      };
+      if (range) {
+        if (range.start >= stat.size) return null;
+        const end = Math.min(range.end, stat.size - 1);
+        const stream = fs.createReadStream(filePath, { start: range.start, end });
+        return { body: Readable.toWeb(stream) as unknown as BodyInit, size: end - range.start + 1 };
+      }
+      return { body: fs.readFileSync(filePath), size: stat.size };
     } catch (e) {
       console.error("[storage local get error]:", e);
       return null;

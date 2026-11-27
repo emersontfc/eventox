@@ -1,0 +1,31 @@
+.event-moderation .moderation-tools,
+.event-moderation .moderation-batch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  margin-block: 12px;
+}
+
+.event-moderation :is(.moderation-tools, .moderation-batch) button,
+.event-moderation .organizer-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+
+.event-moderation .moderation-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  font-size: .875rem;
+  color: #634851;
+}
+
+.event-moderation .moderation-select input {
+  width: 18px;
+  height: 18px;
+  accent-color: #62263b;
+}

@@ -1,0 +1,113 @@
+.guestbook-mural {
+  --gb-muted: var(--portal-text-secondary, #645754);
+  --gb-accent: var(--portal-accent, #a43f32);
+  --gb-ink: var(--portal-text-primary, #2b201d);
+  --gb-border: var(--portal-border, #ddd0c8);
+  --gb-paper: var(--portal-surface, #fffdf9);
+  width: min(calc(100% - 2rem), 62rem);
+  margin-inline: auto;
+  padding-block: 1.2rem 2rem;
+  color: var(--gb-ink);
+  overflow-wrap: anywhere;
+}
+.guestbook-mural-head, .guestbook-mural-send, .guestbook-dedication-meta, .guestbook-dedication-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .85rem;
+  flex-wrap: wrap;
+}
+.guestbook-mural-head { margin-bottom: 1.25rem; }
+.guestbook-mural h1, .guestbook-mural h2 {
+  margin: 0;
+  color: var(--gb-ink);
+  font-family: Georgia, serif;
+  font-size: clamp(1.65rem, 5vw, 2.5rem);
+  line-height: 1.12;
+}
+.guestbook-mural-head p, .guestbook-mural-send p, .guestbook-dedications > p {
+  margin: .45rem 0 0;
+  color: var(--gb-muted);
+  font-size: 1rem;
+}
+.guestbook-book {
+  display: grid;
+  gap: .5rem;
+  border: 1px solid var(--gb-border);
+  padding: .75rem;
+  border-radius: .65rem;
+  background: var(--gb-paper);
+}
+.guestbook-book span, .guestbook-book a, .guestbook-mural h3, .guestbook-mural-photo label span, .guestbook-mural button {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+}
+.guestbook-book span { font-weight: 650; }
+.guestbook-book div { display: flex; gap: .5rem; flex-wrap: wrap; }
+.guestbook-book a { color: var(--gb-accent); text-decoration: underline; min-height: 2.25rem; }
+.guestbook-mural-form, .guestbook-dedication {
+  min-width: 0;
+  border: 1px solid var(--gb-border);
+  border-radius: .8rem;
+  background: var(--gb-paper);
+}
+.guestbook-mural-form { display: grid; gap: .9rem; padding: clamp(.85rem, 4vw, 1.4rem); }
+.guestbook-mural h3 { margin: 0; font-size: 1.13rem; }
+.guestbook-mural h3 svg { color: var(--gb-accent); flex: none; }
+.guestbook-mural-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.guestbook-mural label { display: grid; gap: .4rem; min-width: 0; font-size: .9rem; font-weight: 650; }
+.guestbook-mural input, .guestbook-mural select, .guestbook-mural textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.6rem;
+  padding: .55rem .65rem;
+  border: 1px solid var(--gb-border);
+  border-radius: .45rem;
+  background: var(--portal-surface-elevated, #f8f4ef);
+  color: var(--gb-ink);
+  font: inherit;
+  font-size: 1rem;
+}
+.guestbook-mural textarea { resize: vertical; }
+.guestbook-mural-counter { margin-top: -.6rem; text-align: right; color: var(--gb-muted); font-size: .8rem; }
+.guestbook-mural-photo { display: grid; gap: .65rem; justify-items: start; }
+.guestbook-mural-photo label { width: min(100%, 28rem); }
+.guestbook-mural-preview { position: relative; width: min(12rem, 100%); }
+.guestbook-mural-preview img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: .45rem; }
+.guestbook-mural-preview button { position: absolute; top: .25rem; right: .25rem; }
+.guestbook-mural button {
+  min-height: 2.65rem;
+  justify-content: center;
+  border: 1px solid var(--gb-border);
+  border-radius: .45rem;
+  padding: .48rem .7rem;
+  background: var(--portal-surface-elevated, #f8f4ef);
+  color: var(--gb-ink);
+  font-weight: 650;
+  cursor: pointer;
+}
+.guestbook-mural button:disabled { opacity: .55; cursor: default; }
+.guestbook-mural button:focus-visible, .guestbook-mural :is(input, select, textarea, a):focus-visible { outline: 2px solid var(--gb-accent); outline-offset: 2px; }
+.guestbook-mural-send button { background: #984230; border-color: #984230; color: white; }
+.guestbook-mural-send p { margin: 0; font-size: .87rem; }
+.guestbook-feedback, .guestbook-feedback-error { margin: 0; padding: .55rem .7rem; border-radius: .4rem; background: #e7f5e9; color: #1f5530; }
+.guestbook-feedback-error { background: #fae9e7; color: #8c2623; }
+.guestbook-dedications { margin-top: 1.45rem; }
+.guestbook-dedications-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: .75rem; margin-top: .75rem; }
+.guestbook-dedication { overflow: hidden; }
+.guestbook-dedication[data-featured] { border-color: var(--gb-accent); }
+.guestbook-dedication > img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.guestbook-dedication-copy { padding: .9rem; }
+.guestbook-dedication blockquote { margin: 0 0 .7rem; font-family: Georgia, serif; font-size: 1.18rem; line-height: 1.5; white-space: pre-wrap; }
+.guestbook-dedication-meta { font-size: .86rem; color: var(--gb-muted); }
+.guestbook-dedication-meta strong { display: block; color: var(--gb-ink); }
+.guestbook-dedication-meta time { white-space: nowrap; }
+.guestbook-dedication-actions { border-top: 1px solid var(--gb-border); justify-content: flex-start; margin-top: .6rem; padding-top: .6rem; }
+.guestbook-dedication-actions span { flex: 1 0 4.5rem; color: var(--gb-muted); font-size: .83rem; }
+.guestbook-standalone-link { width: min(calc(100% - 2rem), 62rem); margin-inline: auto; display: flex; padding-top: 1rem; color: var(--portal-accent, #a43f32); }
+@media (max-width: 34rem) {
+  .guestbook-mural-fields { grid-template-columns: 1fr; }
+  .guestbook-mural-send button { flex: 1 1 100%; }
+}

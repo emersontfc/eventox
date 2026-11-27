@@ -18,6 +18,7 @@ import Confetti from '../../components/Confetti';
 import EmbeddedMusicPlayer, { PlayingSong } from '../../components/EmbeddedMusicPlayer';
 import { resolveEventTheme } from '../../lib/event-themes';
 import EventGallerySection from '../../components/EventGallerySection';
+import GuestbookMural from '../../components/GuestbookMural';
 import EventThemeSelector from '../../components/EventThemeSelector';
 
 interface EventData {
@@ -50,14 +51,6 @@ interface PlaylistItem {
   url: string;
   status: string;
   position: number;
-}
-
-interface MuralMessage {
-  id: number;
-  senderName: string;
-  relationship: string;
-  message: string;
-  createdAt: string;
 }
 
 interface MenuItemDisplay {
@@ -126,15 +119,6 @@ export default function EventClientView({
   const [songRequestSuccess, setSongRequestSuccess] = useState('');
   const [songRequestError, setSongRequestError] = useState('');
 
-  // Mural / Guestbook state
-  const [muralMessages, setMuralMessages] = useState<MuralMessage[]>([]);
-  const [muralSenderName, setMuralSenderName] = useState('');
-  const [muralRelationship, setMuralRelationship] = useState('Amigo(a)');
-  const [muralMessage, setMuralMessage] = useState('');
-  const [muralSubmitting, setMuralSubmitting] = useState(false);
-  const [muralSuccess, setMuralSuccess] = useState('');
-  const [muralError, setMuralError] = useState('');
-
   // Event stats
   const [confirmedCount, setConfirmedCount] = useState<number>(0);
 
@@ -179,7 +163,7 @@ export default function EventClientView({
     }
   }, []);
 
-  // Fetch initial event dynamic data (playlist, guestbook, stats)
+  // Fetch initial event dynamic data (playlist, menu, stats)
   useEffect(() => {
     if (!event.slug) return;
     const fetchEventExtras = async () => {
@@ -189,7 +173,6 @@ export default function EventClientView({
         const data = (await res.json()) as any;
         if (data.event?.coverTheme) setCurrentTheme(data.event.coverTheme);
         if (data.playlist) setPlaylist(data.playlist);
-        if (data.guestbook) setMuralMessages(data.guestbook);
         if (data.stats?.confirmedGuests) setConfirmedCount(data.stats.confirmedGuests);
         if (data.menu && Array.isArray(data.menu)) setMenuItemsList(data.menu);
       } catch {
@@ -373,43 +356,6 @@ export default function EventClientView({
       setSongRequestError(err.message || 'Erro ao submeter pedido de música');
     } finally {
       setSongRequestLoading(false);
-    }
-  };
-
-  // Handle Mural / Guestbook Submit
-  const handleMuralSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMuralError('');
-    setMuralSuccess('');
-
-    const sender = muralSenderName.trim() || (selectedGuest ? selectedGuest.name : '');
-    if (!sender || !muralMessage.trim()) {
-      setMuralError('Por favor preenche o teu nome e a mensagem de felicitação.');
-      return;
-    }
-
-    setMuralSubmitting(true);
-    try {
-      const res = await fetch(`/api/events/${encodeURIComponent(event.slug)}/guestbook`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          senderName: sender,
-          relationship: muralRelationship,
-          message: muralMessage.trim(),
-        }),
-      });
-
-      const data = (await res.json()) as any;
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar mensagem');
-
-      setShowConfetti(true);
-      setMuralSuccess('✦ A tua mensagem foi enviada. Ficará no mural após aprovação da equipa.');
-      setMuralMessage('');
-    } catch (err: any) {
-      setMuralError(err.message || 'Erro ao enviar felicitação');
-    } finally {
-      setMuralSubmitting(false);
     }
   };
 
@@ -1033,108 +979,7 @@ export default function EventClientView({
 
       {activeTab === 'menu' && <PublicEventMenu items={menuItemsList} />}
 
-      {/* TAB 5: INTEGRATED MURAL DE FELICITAÇÕES */}
-      {activeTab === 'mural' && (
-        <section className="portal-mural-section" style={{ maxWidth: '820px', margin: '0 auto 70px', padding: '0 16px' }}>
-          <div className="portal-rsvp-card">
-            <div className="rsvp-header">
-              <span className="overline">MENSAGENS & HOMENAGENS</span>
-              <h2>Mural de Felicitações ao Anfitrião</h2>
-              <p>Deixa uma mensagem com palavras de carinho, votos de sucesso e bênçãos para o homenageado.</p>
-            </div>
-
-            {/* Send Wish Form */}
-            <form onSubmit={handleMuralSubmit} className="guest-self-reg-card" style={{ marginBottom: '30px' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <Heart className="text-rose-500" size={18} />
-                <h3 style={{ margin: 0, fontSize: '16px' }}>Escrever Mensagem de Felicitação</h3>
-              </div>
-
-              {muralError && <div className="auth-alert-error" style={{ marginBottom: '12px' }}>{muralError}</div>}
-              {muralSuccess && <div className="rsvp-feedback success" style={{ marginBottom: '12px' }}>{muralSuccess}</div>}
-
-              <div className="form-grid">
-                <label className="field">
-                  O Teu Nome *
-                  <input
-                    type="text"
-                    required
-                    value={muralSenderName}
-                    onChange={(e) => setMuralSenderName(e.target.value)}
-                    placeholder={selectedGuest ? selectedGuest.name : 'Ex.: Dr. Carlos Mondlane'}
-                  />
-                </label>
-                <label className="field">
-                  Grau de Relação
-                  <select value={muralRelationship} onChange={(e) => setMuralRelationship(e.target.value)}>
-                    <option value="Família">Família</option>
-                    <option value="Amigo(a)">Amigo(a)</option>
-                    <option value="Colega">Colega / Profissional</option>
-                    <option value="Mestre / Professor">Mestre / Professor</option>
-                    <option value="Convidado de Honra">Convidado de Honra</option>
-                  </select>
-                </label>
-                <label className="field full">
-                  A Tua Mensagem de Felicitação *
-                  <textarea
-                    required
-                    rows={4}
-                    value={muralMessage}
-                    onChange={(e) => setMuralMessage(e.target.value)}
-                    placeholder="Muitos parabéns por esta conquista notável! Que esta nova etapa seja repleta de sucesso e realizações..."
-                  />
-                </label>
-              </div>
-
-              <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={muralSubmitting}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <Send size={15} />
-                  {muralSubmitting ? 'A enviar…' : '✦ Publicar no Mural de Honra'}
-                </button>
-              </div>
-            </form>
-
-            {/* Approved Messages Feed */}
-            <div className="mural-feed">
-              <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--portal-text-primary)', marginBottom: '16px' }}>
-                Mensagens de Amigos & Família ({muralMessages.length})
-              </h4>
-
-              {muralMessages.length === 0 ? (
-                <div className="no-results-hint" style={{ padding: '24px' }}>
-                  <MessageSquare size={32} className="mx-auto mb-2 text-rose-400" />
-                  <p>Ainda não há mensagens aprovadas no mural.</p>
-                  <p style={{ fontSize: '11.5px', marginTop: '4px' }}>Sê o primeiro a felicitar o anfitrião no formulário acima!</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {muralMessages.map((m) => (
-                    <div
-                      key={m.id}
-                      className="p-5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md shadow-sm transition hover:border-white/20"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <strong className="text-sm font-bold text-white">{m.senderName}</strong>
-                        <span className="text-[11px] font-semibold text-rose-300 bg-rose-500/20 border border-rose-500/30 px-2.5 py-0.5 rounded-full">
-                          {m.relationship || 'Convidado'}
-                        </span>
-                      </div>
-                      <p className="text-sm text-neutral-300 leading-relaxed font-serif italic">
-                        "{m.message}"
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
+      {activeTab === 'mural' && <GuestbookMural slug={event.slug} />}
 
       {/* TAB 6: INTERACTIVE PHOTO GALLERY & DIRECT PHONE UPLOAD */}
       {activeTab === 'gallery' && (

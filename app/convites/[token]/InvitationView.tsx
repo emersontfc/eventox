@@ -1,9 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CalendarDays, Check, Clock3, LockKeyhole, MapPin, Ticket, UtensilsCrossed } from 'lucide-react';
+import { BarChart3, CalendarDays, Check, Clock3, Images, LockKeyhole, MapPin, MessageSquareText, Ticket, UtensilsCrossed } from 'lucide-react';
 import Countdown from '../../../components/Countdown';
 import ProgramTimeline from '../../../components/ProgramTimeline';
+import LiveProgramHighlights from '../../../components/LiveProgramHighlights';
+import EventGallerySection from '../../../components/EventGallerySection';
+import GuestbookMural from '../../../components/GuestbookMural';
+import PollGuestPanel from '../../../components/PollGuestPanel';
 import { menuCategories, menuCategory, menuGroups } from '../../../lib/menu-categories';
 import { INVITE_TIME_ZONE, type GuestInvitationData } from '../../../lib/guest-invitation';
 import { resolveEventTheme } from '../../../lib/event-themes';
@@ -62,7 +66,7 @@ export default function InvitationView({ token, initial }: { token: string; init
   const [data, setData] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [section, setSection] = useState<'programa' | 'cardapio'>('programa');
+  const [section, setSection] = useState<'programa' | 'cardapio' | 'galeria' | 'mural' | 'votacao'>('programa');
   const endpoint = `/api/convites/${encodeURIComponent(token)}`;
   const request = useRef<AbortController | null>(null);
 
@@ -117,9 +121,11 @@ export default function InvitationView({ token, initial }: { token: string; init
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ member, status }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      setData(result);
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(failure?.error || 'Não foi possível guardar a resposta.');
+      }
+      setData(await response.json() as GuestInvitationData);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Não foi possível guardar a resposta.');
     } finally {
@@ -227,8 +233,8 @@ export default function InvitationView({ token, initial }: { token: string; init
           <section className="invitation-locked">
             <Clock3 size={21} aria-hidden="true" />
             <div>
-              <h2>Programa e cardápio</h2>
-              <p>Disponíveis no dia do evento{opensAt ? `, a partir das 00:00 (hora local)` : ''}.</p>
+              <h2>No dia do evento</h2>
+              <p>Programa, cardápio e participação disponíveis no dia do evento{opensAt ? `, a partir das 00:00 (hora local)` : ''}.</p>
             </div>
           </section>
         ) : (
@@ -240,8 +246,32 @@ export default function InvitationView({ token, initial }: { token: string; init
               <button type="button" aria-pressed={section === 'cardapio'} onClick={() => setSection('cardapio')}>
                 <UtensilsCrossed size={17} aria-hidden="true" />Cardápio e bar
               </button>
+              {data.eventSlug && (
+                <>
+                  <button type="button" aria-pressed={section === 'galeria'} onClick={() => setSection('galeria')}>
+                    <Images size={17} aria-hidden="true" />Galeria
+                  </button>
+                  <button type="button" aria-pressed={section === 'mural'} onClick={() => setSection('mural')}>
+                    <MessageSquareText size={17} aria-hidden="true" />Mural
+                  </button>
+                  <button type="button" aria-pressed={section === 'votacao'} onClick={() => setSection('votacao')}>
+                    <BarChart3 size={17} aria-hidden="true" />Votação ao vivo
+                  </button>
+                </>
+              )}
             </div>
-            {section === 'programa' ? <ProgramTimeline items={data.program} /> : <InvitationMenu items={data.menu} />}
+            {section === 'programa' ? (
+              <>
+                {data.liveProgram && <LiveProgramHighlights state={data.liveProgram} />}
+                <ProgramTimeline items={data.program} />
+              </>
+            ) : null}
+            {section === 'cardapio' && <InvitationMenu items={data.menu} />}
+            {section === 'galeria' && data.eventSlug && (
+              <EventGallerySection slug={data.eventSlug} photoAlbumUrl={data.photoAlbumUrl} />
+            )}
+            {section === 'mural' && data.eventSlug && <GuestbookMural slug={data.eventSlug} />}
+            {section === 'votacao' && data.eventSlug && <PollGuestPanel slug={data.eventSlug} token={token} />}
           </section>
         )}
         <footer className="invitation-footer">EventoX</footer>

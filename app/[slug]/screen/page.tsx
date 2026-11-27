@@ -1,5 +1,9 @@
 'use client';
 import type { ProgramItem } from '../../../lib/event-program';
+import type { ActiveProjection } from '@/lib/projection';
+import type { PublicLiveProgram } from '@/lib/live-program';
+import type { LivePoll } from '@/lib/live-voting';
+import ProjectionPreview from '@/components/ProjectionPreview';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
@@ -11,6 +15,9 @@ import {
 import QRCode from 'qrcode';
 
 interface ScreenData {
+  projection?: ActiveProjection | null;
+  liveProgram?: PublicLiveProgram | null;
+  livePoll?: LivePoll | null;
   event: {
     id: number;
     slug: string;
@@ -113,6 +120,7 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
   const [screenData, setScreenData] = useState<ScreenData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const screenRequest = useRef<AbortController | null>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -203,59 +211,85 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
     }
   }, [audioEnabled]);
 
-  // Fetch initial screen data
   const fetchScreenData = useCallback(async (currentSlug: string) => {
+    if (!currentSlug) return;
+    screenRequest.current?.abort();
+    const controller = new AbortController();
+    screenRequest.current = controller;
     try {
-      const res = await fetch(`/api/screen/${currentSlug}`, { cache: 'no-store' });
+      const res = await fetch(`/api/screen/${encodeURIComponent(currentSlug)}`, {
+        cache: 'no-store', signal: controller.signal,
+      });
       if (!res.ok) throw new Error('Falha ao carregar ecrã');
       const data: ScreenData = await res.json();
+      if (controller.signal.aborted) return;
       setScreenData(data);
       setError(null);
-    } catch (err: any) {
-      if (!screenData) {
-        setError('A carregar transmissão do evento...');
-      }
+    } catch {
+      if (controller.signal.aborted) return;
+      setError('A carregar transmissão do evento…');
+      setScreenData(previous => previous?.projection ? { ...previous, projection: null } : previous);
     } finally {
-      setLoading(false);
+      if (screenRequest.current === controller) {
+        screenRequest.current = null;
+        setLoading(false);
+      }
     }
-  }, [screenData]);
+  }, []);
 
-  // SSE Stream with polling fallback
   useEffect(() => {
     if (!slug) return;
-
-    fetchScreenData(slug);
+    const refresh = () => void fetchScreenData(slug);
+    refresh();
 
     let eventSource: EventSource | null = null;
-    let pollInterval: NodeJS.Timeout | null = null;
+    let pollInterval: number | undefined;
+    const startPolling = () => {
+      if (pollInterval !== undefined) return;
+      refresh();
+      pollInterval = window.setInterval(refresh, 3000);
+    };
+    const stopPolling = () => {
+      if (pollInterval !== undefined) window.clearInterval(pollInterval);
+      pollInterval = undefined;
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
 
     try {
-      eventSource = new EventSource(`/api/screen/${slug}/stream`);
-
-      eventSource.addEventListener('update', (event) => {
-        try {
-          fetchScreenData(slug);
-        } catch {}
-      });
-
-      eventSource.onerror = () => {
-        if (!pollInterval) {
-          pollInterval = setInterval(() => {
-            fetchScreenData(slug);
-          }, 3000);
-        }
-      };
+      eventSource = new EventSource(`/api/screen/${encodeURIComponent(slug)}/stream`);
+      eventSource.onopen = () => { stopPolling(); refresh(); };
+      eventSource.addEventListener('update', refresh);
+      eventSource.onerror = startPolling;
     } catch {
-      pollInterval = setInterval(() => {
-        fetchScreenData(slug);
-      }, 3000);
+      startPolling();
     }
 
+    window.addEventListener('online', refresh);
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
-      if (eventSource) eventSource.close();
-      if (pollInterval) clearInterval(pollInterval);
+      eventSource?.close();
+      stopPolling();
+      window.removeEventListener('online', refresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+      screenRequest.current?.abort();
+      screenRequest.current = null;
     };
   }, [slug, fetchScreenData]);
+
+  const projectionExpiry = screenData?.projection?.expiresAt ?? 0;
+  const projectionId = screenData?.projection?.id;
+  const projectionServerTime = screenData?.timestamp ?? 0;
+  useEffect(() => {
+    if (!projectionExpiry) return;
+    const timeout = window.setTimeout(() => {
+      setScreenData(previous => previous?.projection?.id === projectionId &&
+        previous?.projection?.expiresAt === projectionExpiry ? { ...previous, projection: null } : previous);
+    }, Math.max(0, projectionExpiry - projectionServerTime));
+    return () => window.clearTimeout(timeout);
+  }, [projectionExpiry, projectionId, projectionServerTime]);
 
   // Generate high-resolution QR Code for Participant Join
   useEffect(() => {
@@ -404,7 +438,8 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
     );
   }
 
-  const { event, settings, activeMessage, quotes = [], photos = [], program = [], recentArrivals = [], activeGameSession, interactions } = screenData!;
+  const { event, settings, activeMessage, quotes = [], photos = [], program = [], recentArrivals = [], activeGameSession, interactions,
+    projection, liveProgram, livePoll } = screenData!;
   const currentSceneType = settings.activeSceneId || 'welcome';
   const currentQuote = quotes.length > 0 ? quotes[liveQuoteIndex % quotes.length] : null;
   const programPage = (contentPage % Math.max(1, Math.ceil(program.length / 4))) * 4;
@@ -470,6 +505,12 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           </button>
         </div>
+
+        {projection && (
+          <div className="projection-scene">
+            <ProjectionPreview key={projection.id} item={projection} live />
+          </div>
+        )}
 
         {/* Emergency Mode Alert Banner */}
         {settings.emergencyMode && (
@@ -755,7 +796,27 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
           )}
 
           {/* 4. SCENE: LIVE POLLS */}
-          {currentSceneType === 'poll' && (
+          {currentSceneType === 'poll' && livePoll && (
+            <section className="screen-poll w-full max-w-4xl mx-auto text-center space-y-3">
+              <p className="text-amber-200">
+                {livePoll.status === 'open' ? 'Vota no teu convite digital' : livePoll.status === 'closed' ? 'Votação encerrada' : 'Resultados da votação'}
+              </p>
+              <h2 className="screen-poll-title">{livePoll.title}</h2>
+              {livePoll.status === 'revealed' && (
+                <ul className="screen-poll-options">
+                  {livePoll.options.map(option => (
+                    <li key={option.id}>
+                      <strong>{option.label}</strong>
+                      <span className="block text-amber-200">
+                        {option.votes ?? 0} {(option.votes ?? 0) === 1 ? 'voto' : 'votos'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+          {currentSceneType === 'poll' && !livePoll && (
             <div className="w-full max-w-4xl mx-auto text-center space-y-6 animate-in fade-in">
               <span className="text-xs font-bold tracking-widest text-amber-400 uppercase">
                 ✦ VOTAÇÃO EM DIRETO DAS MESAS ✦
@@ -851,7 +912,12 @@ export default function EventScreenPage({ params }: { params: Promise<{ slug: st
           {currentSceneType === 'schedule' && (
             <div className="screen-program">
               <h2>Programa do evento</h2>
-              {program.length ? (
+              {liveProgram?.status === 'live' && (liveProgram.current || liveProgram.next) ? (
+                <div className="screen-program-live">
+                  {liveProgram.current && <p><span>Agora</span><strong>{liveProgram.current.title}</strong></p>}
+                  {liveProgram.next && <p><span>A seguir</span><strong>{liveProgram.next.title}</strong></p>}
+                </div>
+              ) : liveProgram?.status === 'complete' ? <p>Programa encerrado.</p> : program.length ? (
                 <ul>
                   {program.slice(programPage, programPage + 4).map((item, index) => (
                     <li key={programPage + index}><time dateTime={item.time}>{item.time}</time><strong>{item.title}</strong></li>

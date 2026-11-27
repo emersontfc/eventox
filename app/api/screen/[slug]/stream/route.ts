@@ -1,6 +1,8 @@
 import { getDb } from '@/db';
-import { events, screenSettings, screenMessages, gameSessions } from '@/db/schema';
+import { events, screenSettings, screenMessages, gameSessions, galleryMedia, settings as siteSettings } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { programKey } from '@/lib/event-program-server';
+import { readActiveProjection } from '@/lib/projection-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +21,8 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
   let lastVersion = -1;
   let lastMessageId = 0;
   let lastSessionVersion = -1;
+  let lastContentSignature = '';
+  let polling = false;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -28,6 +32,8 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       );
 
       const pollForUpdates = async () => {
+        if (polling || request.signal.aborted) return;
+        polling = true;
         try {
           const [settings] = await db
             .select()
@@ -59,7 +65,21 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
           const isMsgChanged = currentMsgId !== lastMessageId;
           const isGameChanged = gameSessionVersion !== lastSessionVersion;
 
-          if (isSettingsChanged || isMsgChanged || isGameChanged) {
+          const projection = readActiveProjection(event, Date.now());
+          const gallery = settings?.activeSceneId === 'gallery_mural'
+            ? db.select({ id: galleryMedia.id, mime: galleryMedia.mime, author: galleryMedia.uploader })
+              .from(galleryMedia).where(and(eq(galleryMedia.eventId, event.id), eq(galleryMedia.status, 'aprovado')))
+              .orderBy(desc(galleryMedia.featured), desc(galleryMedia.id)).limit(16).all()
+            : null;
+          const schedule = settings?.activeSceneId === 'schedule'
+            ? db.select({ value: siteSettings.value }).from(siteSettings)
+              .where(eq(siteSettings.key, programKey(event.id))).get()?.value
+            : null;
+          const contentSignature = JSON.stringify([projection, gallery, schedule]);
+          const contentChanged = contentSignature !== lastContentSignature;
+
+          if (isSettingsChanged || isMsgChanged || isGameChanged || contentChanged) {
+            lastContentSignature = contentSignature;
             lastVersion = currentVersion;
             lastMessageId = currentMsgId;
             lastSessionVersion = gameSessionVersion;
@@ -77,13 +97,16 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
             controller.enqueue(encoder.encode(`: heartbeat ${Date.now()}\n\n`));
           }
         } catch {
-          // ignore transient poll error
+          // Clients keep their polling fallback when this connection closes.
+        } finally {
+          polling = false;
         }
       };
 
       // Poll every 1.5 seconds for instant response
       intervalId = setInterval(pollForUpdates, 1500);
-      pollForUpdates();
+      request.signal.addEventListener('abort', () => clearInterval(intervalId), { once: true });
+      void pollForUpdates();
     },
     cancel() {
       if (intervalId) clearInterval(intervalId);

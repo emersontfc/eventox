@@ -4,6 +4,7 @@ import { getDb } from '../db';
 import { events, guestInvitations, guests, guestTables, menuItems } from '../db/schema';
 import { invitationDates, type GuestInvitationData } from './guest-invitation';
 import { readProgram } from './event-program-server';
+import { readLiveProgram } from './live-program-server';
 
 export const isGuestInvitationToken = (token: unknown): token is string =>
   typeof token === 'string' && /^[a-z0-9_-]{43}$/i.test(token);
@@ -26,7 +27,7 @@ export async function readGuestInvitation(token: string): Promise<GuestInvitatio
   const db = getDb();
   const event = db.select({
     slug: events.slug, title: events.title, hostName: events.hostName, venue: events.venue,
-    coverTheme: events.coverTheme, eventDate: events.eventDate,
+    coverTheme: events.coverTheme, eventDate: events.eventDate, photoAlbumUrl: events.photoAlbumUrl,
   }).from(events).where(eq(events.id, invite.eventId)).get();
   if (!event) return null;
 
@@ -56,6 +57,9 @@ export async function readGuestInvitation(token: string): Promise<GuestInvitatio
 
   return {
     title: event.title, hostName: event.hostName, venue: event.venue, coverTheme: event.coverTheme,
+    eventSlug: dates.dayOpen ? event.slug : null,
+    photoAlbumUrl: dates.dayOpen ? event.photoAlbumUrl : null,
+    liveProgram: dates.dayOpen ? await readLiveProgram(invite.eventId, program) : null,
     ...dates, members, program, menu,
   };
 }

@@ -1,4 +1,5 @@
 import type { ProgramItem } from './event-program';
+import type { PublicLiveProgram } from './live-program';
 
 export type GuestInvitationData = {
   title: string;
@@ -8,6 +9,9 @@ export type GuestInvitationData = {
   startsAt: string | null;
   opensAt: string | null;
   dayOpen: boolean;
+  eventSlug: string | null;
+  photoAlbumUrl: string | null;
+  liveProgram: PublicLiveProgram | null;
   members: {
     name: string;
     status: string;
