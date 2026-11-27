@@ -5,10 +5,13 @@ import {
   Monitor, Play, Pause, AlertTriangle, ExternalLink, RefreshCw,
   CheckCircle2, Clock, Send, Palette, Sparkles, Volume2, Shield,
   Eye, X, Check, Users, MessageSquare, Radio, Maximize2,
-  Trophy, HelpCircle, BarChart3, Cloud, Flame, Plus, ChevronRight,
+  Trophy, HelpCircle, BarChart3, CalendarDays, Cloud, Flame, Plus, ChevronRight,
   ChevronLeft, Award, ThumbsUp, ArrowRight, Music, AlertCircle
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import ProjectionQueue from './ProjectionQueue';
+import LiveProgramControl from './LiveProgramControl';
+import PollOperatorPanel from './PollOperatorPanel';
 
 interface Scene {
   id: number;
@@ -96,7 +99,7 @@ function StudioPreview({ slug }: { slug: string }) {
 }
 
 export default function LiveStudioDashboard({ slug }: { slug: string }) {
-  const [activeTab, setActiveTab] = useState<'monitor' | 'games' | 'interactions' | 'messages'>('monitor');
+  const [activeTab, setActiveTab] = useState<'monitor' | 'projection' | 'program' | 'polls' | 'games' | 'interactions' | 'messages'>('monitor');
   const [screenData, setScreenData] = useState<any>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [activeSession, setActiveSession] = useState<GameSession | null>(null);
@@ -115,10 +118,6 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
   // Game creation modal / form
   const [newGameTitle, setNewGameTitle] = useState('');
   const [isCreatingGame, setIsCreatingGame] = useState(false);
-
-  // Poll creation
-  const [pollTitle, setPollTitle] = useState('');
-  const [pollOptions, setPollOptions] = useState(['Opção A', 'Opção B', 'Opção C']);
 
   // Direct Broadcast
   const [broadcastText, setBroadcastText] = useState('');
@@ -472,29 +471,6 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
     }
   };
 
-  // 5. Interactions Handlers (Polls & Word Cloud)
-  const handleCreatePoll = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pollTitle.trim()) return;
-
-    try {
-      await studioRequest(`/api/games/${slug}/interactions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create-poll',
-          pollTitle: pollTitle.trim(),
-          pollOptions: pollOptions.filter(o => o.trim()),
-        }),
-      });
-      showToast('📊 Votação ao vivo criada e projetada no ecrã!');
-      setPollTitle('');
-      loadStudioState();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  };
-
   const handleModerateInteraction = async (id: number, status: 'aprovado' | 'rejeitado' | 'exibido') => {
     try {
       await studioRequest(`/api/games/${slug}/interactions`, {
@@ -583,7 +559,7 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
         <span className="studio-sync" data-connected={syncMode === 'live'} aria-live="polite">
           {loading ? 'A ligar…' : !screenData ? 'Ecrã indisponível' : syncMode === 'live' ? 'Ligação em direto' : 'Atualização periódica'}
         </span>
-        {screenData && <span>No ar <strong>{sceneTitle(currentScene)}</strong></span>}
+        {screenData && <span>No ar <strong>{screenData.projection ? 'Projeção' : sceneTitle(currentScene)}</strong></span>}
         {screenData && <span>{isPaused ? 'Rotação em pausa' : screenData.settings?.autoRotate === false ? 'Rotação manual' : 'Rotação ativa'}</span>}
         {isEmergency && <strong className="studio-alert-state">Alerta ativo</strong>}
       </div>
@@ -596,8 +572,11 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
       <nav className="studio-tabs" aria-label="Secções do Estúdio Live">
         {([
           { id: 'monitor', label: 'Monitor', icon: Monitor },
+          { id: 'projection', label: 'Projeção', icon: Eye },
+          { id: 'program', label: 'Programa', icon: CalendarDays },
+          { id: 'polls', label: 'Votações', icon: BarChart3 },
           { id: 'games', label: 'Quiz', icon: Trophy, count: activeSession ? 'Ativo' : '' },
-          { id: 'interactions', label: 'Interações', icon: BarChart3 },
+          { id: 'interactions', label: 'Interações', icon: Cloud },
           { id: 'messages', label: 'Mensagens', icon: MessageSquare, count: messages.filter(m => m.status === 'pendente').length || '' },
         ] as const).map(({ id, label, icon: Icon, ...meta }) => (
           <button key={id} type="button" aria-pressed={activeTab === id} onClick={() => setActiveTab(id)}>
@@ -606,6 +585,10 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
           </button>
         ))}
       </nav>
+
+      {activeTab === 'projection' && <ProjectionQueue slug={slug} />}
+      {activeTab === 'program' && <LiveProgramControl slug={slug} />}
+      {activeTab === 'polls' && <PollOperatorPanel slug={slug} />}
 
       {/* TAB 1: MONITOR & TIMELINE */}
       {activeTab === 'monitor' && (
@@ -990,58 +973,8 @@ export default function LiveStudioDashboard({ slug }: { slug: string }) {
         </div>
       )}
 
-      {/* TAB 3: LIVE POLLS & WORD CLOUD */}
       {activeTab === 'interactions' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Live Poll Builder */}
-          <div className="rounded-2xl bg-slate-900 border border-white/10 p-5 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <BarChart3 size={18} className="text-amber-400" />
-              Criar Votação / Sondagem Live
-            </h3>
-            <p className="text-xs text-neutral-400">
-              Cria uma votação rápida e projeta os resultados instantaneamente na tela grande.
-            </p>
-
-            <form onSubmit={handleCreatePoll} className="space-y-3">
-              <div>
-                <label className="text-xs text-neutral-300 block mb-1">Pergunta da Votação</label>
-                <input
-                  type="text"
-                  value={pollTitle}
-                  onChange={(e) => setPollTitle(e.target.value)}
-                  placeholder="Ex: Qual foi a melhor sobremesa servida?"
-                  className="w-full rounded-xl bg-slate-950 border border-white/15 px-3.5 py-2 text-xs text-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs text-neutral-300 block">Opções de Resposta</label>
-                {pollOptions.map((opt, i) => (
-                  <input
-                    key={i}
-                    type="text"
-                    value={opt}
-                    onChange={(e) => {
-                      const updated = [...pollOptions];
-                      updated[i] = e.target.value;
-                      setPollOptions(updated);
-                    }}
-                    placeholder={`Opção ${i + 1}`}
-                    className="w-full rounded-xl bg-slate-950 border border-white/15 px-3 py-1.5 text-xs text-white"
-                  />
-                ))}
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wide cursor-pointer"
-              >
-                Lançar Votação para a TV
-              </button>
-            </form>
-          </div>
-
+        <div>
           {/* Word Cloud & Q&A Moderation */}
           <div className="rounded-2xl bg-slate-900 border border-white/10 p-5 space-y-4">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">

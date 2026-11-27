@@ -3293,7 +3293,7 @@ body:has(.organizer-drawer[open]) {
 .studio-status-row > * { border-radius: 7px; background: #27212e; padding: 5px 8px; }
 .studio-sync[data-connected="true"] { color: #b2e8c5; }
 .studio-alert-state { color: #ffd0da; }
-.studio-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.studio-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: 8px; }
 .studio-tabs button[aria-pressed="true"] { background: #4b2e46; border-color: #946588; }
 .studio-tabs b { font-size: 0.75rem; color: #f4c992; }
 .studio-error, .studio-toast { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 9px; }

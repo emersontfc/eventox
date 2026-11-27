@@ -1,0 +1,133 @@
+.control {
+  padding: clamp(14px, 3vw, 24px);
+  border: 1px solid #334155;
+  border-radius: 16px;
+  color: #f8fafc;
+  background: #0f172a;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.header h2 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.header p, .program p {
+  margin: 5px 0 0;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+.highlights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.current, .next, .completed {
+  padding: 12px;
+  color: #34252e;
+  background: #faf4ee;
+  border: 1px solid #e6d6c9;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+
+.current {
+  border-color: #ad6a87;
+  background: #f9eaf1;
+}
+
+.highlights.dark :is(.current, .next), .completed.dark {
+  color: #f8fafc;
+  background: #1e293b;
+  border-color: #475569;
+}
+
+.highlights.dark .current {
+  border-color: #facc77;
+  background: #332718;
+}
+
+.momentLabel {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #793958;
+}
+
+.dark .momentLabel { color: #facc77; }
+.highlights strong { display: block; }
+.highlights p { margin: 5px 0 0; }
+.highlights time { font-size: 0.8rem; }
+.completed { margin-bottom: 12px; }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.primary, .secondary {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 9px 12px;
+  min-height: 42px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.primary {
+  color: #21170b;
+  background: #facc77;
+}
+
+.secondary {
+  color: #f8fafc;
+  background: #263449;
+  border-color: #475569;
+}
+
+.program {
+  padding: 0;
+  margin: 12px 0 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+
+.program li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.program li.selected { background: #253148; border-color: #facc77; }
+.program time { color: #facc77; font-variant-numeric: tabular-nums; }
+.badge { color: #fde8bb; font-weight: 700; }
+.error { color: #fecaca; margin: 8px 0; }
+.control button:focus-visible { outline: 2px solid #facc77; outline-offset: 3px; }
+
+@media (max-width: 460px) {
+  .program li { grid-template-columns: auto minmax(0, 1fr); }
+  .program li > :last-child { grid-column: 2; justify-self: start; }
+}

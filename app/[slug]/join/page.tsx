@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import PollGuestPanel from '@/components/PollGuestPanel';
 import {
   Trophy, Sparkles, Users, Send, CheckCircle2, XCircle,
   HelpCircle, BarChart3, Cloud, MessageSquare, ArrowRight,
@@ -42,7 +43,7 @@ export default function ParticipantJoinPage({ params }: { params: Promise<{ slug
   const [wordSubmitted, setWordSubmitted] = useState(false);
   const [qaInput, setQaInput] = useState('');
   const [qaSubmitted, setQaSubmitted] = useState(false);
-  const [pollVoted, setPollVoted] = useState(false);
+  const participantId = participant?.id;
 
   const avatars = ['🎉', '🥂', '🎓', '👑', '✨', '🚀', '🌟', '🩺', '❤️', '🔥'];
 
@@ -75,9 +76,9 @@ export default function ParticipantJoinPage({ params }: { params: Promise<{ slug
 
   // Poll for question updates when in game
   const fetchGameState = useCallback(async () => {
-    if (!slug || !joined || !participant) return;
+    if (!slug || !joined || !participantId) return;
     try {
-      const url = `/api/games/${slug}/join?participantId=${participant.id}${sessionId ? `&sessionId=${sessionId}` : ''}`;
+      const url = `/api/games/${slug}/join?participantId=${participantId}${sessionId ? `&sessionId=${sessionId}` : ''}`;
       const res = await fetch(url, { cache: 'no-store' });
       if (res.ok) {
         const data = (await res.json()) as any;
@@ -98,7 +99,7 @@ export default function ParticipantJoinPage({ params }: { params: Promise<{ slug
         }
       }
     } catch {}
-  }, [slug, joined, participant, sessionId, selectedAnswer]);
+  }, [slug, joined, participantId, sessionId, selectedAnswer]);
 
   useEffect(() => {
     if (!joined) return;
@@ -243,6 +244,19 @@ export default function ParticipantJoinPage({ params }: { params: Promise<{ slug
     setSessionId(null);
   };
 
+  if (!joined && activeTab === 'poll') {
+    return (
+      <main className="min-h-screen bg-slate-950 p-5">
+        <div className="mx-auto max-w-md space-y-4">
+          <button type="button" className="min-h-11 text-amber-300" onClick={() => setActiveTab('quiz')}>
+            Voltar ao quiz
+          </button>
+          <PollGuestPanel slug={slug} />
+        </div>
+      </main>
+    );
+  }
+
   // SCREEN 1: JOIN FORM (MOBILE FIRST)
   if (!joined) {
     return (
@@ -259,6 +273,10 @@ export default function ParticipantJoinPage({ params }: { params: Promise<{ slug
           <p className="text-xs text-neutral-400 mt-1">
             Responde às perguntas no teu telemóvel e compete pelo pódio da festa!
           </p>
+          <button type="button" className="mt-3 min-h-11 px-4 text-sm text-amber-300 underline"
+            onClick={() => setActiveTab('poll')}>
+            Ver votação ao vivo
+          </button>
         </div>
 
         {/* Join Card */}
@@ -391,12 +409,18 @@ export default function ParticipantJoinPage({ params }: { params: Promise<{ slug
       </header>
 
       {/* Sub Tabs */}
-      <div className="flex items-center justify-around border-b border-white/10 my-3 pb-1 text-xs font-semibold">
+      <div className="flex flex-wrap items-center justify-around border-b border-white/10 my-3 pb-1 text-xs font-semibold">
         <button
           onClick={() => setActiveTab('quiz')}
           className={`py-1.5 px-3 rounded-xl transition ${activeTab === 'quiz' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-neutral-400'}`}
         >
           🎮 Quiz Live
+        </button>
+        <button type="button" aria-pressed={activeTab === 'poll'}
+          onClick={() => setActiveTab('poll')}
+          className={`min-h-11 px-3 rounded-xl transition ${activeTab === 'poll' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-neutral-400'}`}
+        >
+          Votação
         </button>
         <button
           onClick={() => setActiveTab('wordcloud')}
@@ -411,6 +435,12 @@ export default function ParticipantJoinPage({ params }: { params: Promise<{ slug
           ❓ Perguntas
         </button>
       </div>
+
+      {activeTab === 'poll' && (
+        <main className="flex-1 w-full max-w-md mx-auto py-2">
+          <PollGuestPanel slug={slug} />
+        </main>
+      )}
 
       {/* TAB 1: QUIZ GAMEPLAY */}
       {activeTab === 'quiz' && (
